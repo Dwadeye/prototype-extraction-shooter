@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://dokl5ytvvm255"]
+
+[ext_resource type="PackedScene" uid="uid://7xdy4mhwah0g" path="res://scenes/proto_gun.tscn" id="1_a202f"]
+
+[node name="Node3D" type="Node3D" unique_id=644096231]
+
+[node name="Proto Gun" parent="." unique_id=186736001 instance=ExtResource("1_a202f")]

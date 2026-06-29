@@ -1,0 +1,68 @@
+[gd_scene format=3 uid="uid://7xdy4mhwah0g"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_6qp00"]
+albedo_color = Color(0, 0.2802757, 0.28070018, 1)
+
+[node name="proto_gun" type="Node3D" unique_id=2096342575]
+
+[node name="Proto Gun" type="CSGCombiner3D" parent="." unique_id=186736001]
+use_collision = true
+
+[node name="Gun body" type="CSGBox3D" parent="Proto Gun" unique_id=1738240428]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5848419, 0)
+material_override = SubResource("StandardMaterial3D_6qp00")
+size = Vector3(0.1, 0.1, 0.4)
+
+[node name="Grip" type="CSGBox3D" parent="Proto Gun/Gun body" unique_id=1270487379]
+transform = Transform3D(1, 0, 0, 0, 2.9802322e-08, -1.0000001, 0, 1.0000001, 2.9802322e-08, 0, -0.099999994, 0.100000024)
+material_override = SubResource("StandardMaterial3D_6qp00")
+size = Vector3(0.05, 0.05, 0.1)
+
+[node name="Triger" type="CSGBox3D" parent="Proto Gun/Gun body" unique_id=2124388218]
+transform = Transform3D(1, 0, 0, 0, 2.9802322e-08, -1.0000001, 0, 1.0000001, 2.9802322e-08, 0, -0.03999996, 0.020000026)
+material_override = SubResource("StandardMaterial3D_6qp00")
+size = Vector3(0.02, 0.02, 0.1)
+
+[node name="Barrel" type="CSGCylinder3D" parent="Proto Gun/Gun body" unique_id=719841358]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0.0051580667, -0.22)
+radius = 0.025
+height = 0.3
+
+[node name="Stock" type="CSGBox3D" parent="Proto Gun" unique_id=545763640]
+transform = Transform3D(1, 0, 0, 0, 0.9659258, -0.25881904, 0, 0.25881904, 0.9659258, 0, 0.5748419, 0.26000002)
+material_override = SubResource("StandardMaterial3D_6qp00")
+size = Vector3(0.03, 0.05, 0.2)
+
+[node name="Stock2" type="CSGBox3D" parent="Proto Gun/Stock" unique_id=1609246167]
+transform = Transform3D(1, 0, 0, 0, 0.25881907, -0.96592593, 0, 0.96592593, 0.25881907, 0, 0.009151518, 0.111428216)
+material_override = SubResource("StandardMaterial3D_6qp00")
+size = Vector3(0.05, 0.05, 0.08)
+
+[node name="Sight Mount" type="CSGBox3D" parent="Proto Gun" unique_id=319073514]
+transform = Transform3D(1, 0, 0, 0, -1.0000001, 1.39090695e-08, 0, -1.39090695e-08, -1.0000001, 0, 0.6448419, 0.020000022)
+material_override = SubResource("StandardMaterial3D_6qp00")
+size = Vector3(0.02, 0.02, 0.06)
+
+[node name="Sight" type="CSGCylinder3D" parent="Proto Gun" unique_id=320614605]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0.66999996, 0.019375008)
+radius = 0.025
+height = 0.06875
+
+[node name="Sight" type="CSGCylinder3D" parent="Proto Gun/Sight" unique_id=1665367607]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.008593743, -0.0006249547)
+operation = 2
+radius = 0.02
+height = 0.1971875
+
+[node name="Croshair A" type="CSGBox3D" parent="Proto Gun/Sight/Sight" unique_id=1325333566]
+transform = Transform3D(1, 0, 0, 0, -1.0000001, 1.39090695e-08, 0, -1.39090695e-08, -1.0000001, -0.0005000001, 0.018435692, 0.010625005)
+material_override = SubResource("StandardMaterial3D_6qp00")
+size = Vector3(0.001, 0.01, 0.06)
+
+[node name="Croshair B" type="CSGBox3D" parent="Proto Gun/Sight/Sight" unique_id=2104030454]
+transform = Transform3D(-4.371139e-08, -5.762046e-08, -1.0000001, -4.371139e-08, -1.0000001, 5.762046e-08, -1, 4.3711392e-08, 4.371139e-08, -0.0005000001, 0.018435692, 0.0006250143)
+material_override = SubResource("StandardMaterial3D_6qp00")
+size = Vector3(0.001, 0.01, 0.049999997)
+
+[node name="Marker3D" type="Marker3D" parent="." unique_id=389232319]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.59000003, -0.38)

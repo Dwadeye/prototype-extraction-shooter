@@ -1,0 +1,34 @@
+[gd_scene format=3 uid="uid://doo0k0l0er8uf"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_n7y4f"]
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_fmbqo"]
+
+[node name="MeshGun" type="Node3D" unique_id=1306865825]
+
+[node name="Gun Bodyy" type="MeshInstance3D" parent="." unique_id=47715304]
+transform = Transform3D(0.1, 0, 0, 0, 0.1, 0, 0, 0, 0.6, 0, 0, 0)
+mesh = SubResource("BoxMesh_n7y4f")
+
+[node name="Stock" type="MeshInstance3D" parent="Gun Bodyy" unique_id=668903007]
+transform = Transform3D(0.5, 0, 0, 0, 0.4829629, -0.5176381, 0, 0.021568254, 0.32197526, 0, 0, 0.54999995)
+mesh = SubResource("BoxMesh_n7y4f")
+
+[node name="ButtStock" type="MeshInstance3D" parent="Gun Bodyy" unique_id=407743870]
+transform = Transform3D(0.5, 0, 0, 0, -2.1855694e-08, -0.79999995, 0, 0.083333336, -5.828185e-09, 0, -0.19999999, 0.71666664)
+mesh = SubResource("BoxMesh_n7y4f")
+
+[node name="Grip" type="MeshInstance3D" parent="Gun Bodyy" unique_id=1115283332]
+transform = Transform3D(0.5, 0, 0, 0, 9.313226e-09, -1.9999999, 0, 0.08333333, 6.208817e-09, 0, -0.7, 0.3833333)
+mesh = SubResource("BoxMesh_n7y4f")
+
+[node name="Trigger" type="MeshInstance3D" parent="Gun Bodyy" unique_id=141271496]
+transform = Transform3D(0.19999999, 0, 0, 0, 0.051763795, -0.96592575, 0, 0.032197524, 0.0431365, 0, -0.39999998, 0.19999997)
+mesh = SubResource("BoxMesh_n7y4f")
+
+[node name="Gun Barrel" type="MeshInstance3D" parent="Gun Bodyy" unique_id=1036106843]
+transform = Transform3D(0.29999998, 0, 0, 0, -3.496911e-08, -0.29999998, 0, 0.13333333, -2.1855693e-09, 0, 0, -0.54999995)
+mesh = SubResource("CylinderMesh_fmbqo")
+
+[node name="Marker3D" type="Marker3D" parent="." unique_id=464888068]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.41498086)
