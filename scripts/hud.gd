@@ -17,6 +17,7 @@ var _hint_label: Label
 var _prompt_label: Label
 var _carried_label: Label
 var _charge_bar: ProgressBar
+var _channel_bar: ProgressBar
 var _scope: ColorRect
 var _inventory_panel: Panel
 var _inventory_label: Label
@@ -188,6 +189,29 @@ func _build() -> void:
 	cff.bg_color = Color(1.0, 0.7, 0.25)
 	_charge_bar.add_theme_stylebox_override("fill", cff)
 	root.add_child(_charge_bar)
+
+	# Extraction channel bar (under crosshair, below charge bar)
+	_channel_bar = ProgressBar.new()
+	_channel_bar.show_percentage = false
+	_channel_bar.anchor_left = 0.5
+	_channel_bar.anchor_right = 0.5
+	_channel_bar.anchor_top = 0.5
+	_channel_bar.anchor_bottom = 0.5
+	_channel_bar.offset_left = -70
+	_channel_bar.offset_right = 70
+	_channel_bar.offset_top = 40
+	_channel_bar.offset_bottom = 50
+	_channel_bar.min_value = 0.0
+	_channel_bar.max_value = 1.0
+	_channel_bar.value = 0.0
+	_channel_bar.visible = false
+	var chbg := StyleBoxFlat.new()
+	chbg.bg_color = Color(0.0, 0.0, 0.0, 0.55)
+	_channel_bar.add_theme_stylebox_override("background", chbg)
+	var chff := StyleBoxFlat.new()
+	chff.bg_color = Color(0.35, 0.95, 0.9)
+	_channel_bar.add_theme_stylebox_override("fill", chff)
+	root.add_child(_channel_bar)
 
 	# Center message
 	_message_label = _make_label(root, 56)
@@ -369,15 +393,18 @@ func set_weapon_summary(summary: Dictionary) -> void:
 		int(summary.get("magazine", 0))
 	)
 
-func set_ammo(current: int, maximum: int) -> void:
-	_update_ammo(current, maximum)
+func set_ammo(current: int, maximum: int, reserve := -1) -> void:
+	_update_ammo(current, maximum, reserve)
 
-func _update_ammo(current: int, maximum: int) -> void:
+func _update_ammo(current: int, maximum: int, reserve := -1) -> void:
 	if _ammo_label == null:
 		return
 	match _weapon_kind:
 		"gun":
-			_ammo_label.text = "AMMO  %d / %d" % [current, maximum]
+			if reserve >= 0:
+				_ammo_label.text = "AMMO  %d | %d" % [current, reserve]
+			else:
+				_ammo_label.text = "AMMO  %d / %d" % [current, maximum]
 		"utility":
 			_ammo_label.text = "GRENADES  %d" % current
 		_:
@@ -421,6 +448,16 @@ func set_charge(ratio: float) -> void:
 	else:
 		_charge_bar.visible = true
 		_charge_bar.value = ratio
+
+## Extraction channel progress (cyan bar); also used for healing via set_charge.
+func set_channel(ratio: float) -> void:
+	if _channel_bar == null:
+		return
+	if ratio <= 0.001:
+		_channel_bar.visible = false
+	else:
+		_channel_bar.visible = true
+		_channel_bar.value = ratio
 
 func set_scope_visible(visible_state: bool) -> void:
 	if _scope != null:

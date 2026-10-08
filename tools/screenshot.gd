@@ -8,8 +8,9 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
-	if "greybox" in args:
-		MapBuilder.current_map = "greybox"
+	for map_name in ["town", "warehouse", "wilds", "greybox"]:
+		if map_name in args:
+			MapBuilder.current_map = map_name
 	var scene: Node = load("res://scenes/Main.tscn").instantiate()
 	root.add_child(scene)
 	current_scene = scene

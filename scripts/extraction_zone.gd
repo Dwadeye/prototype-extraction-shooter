@@ -1,19 +1,29 @@
 extends Area3D
 class_name ExtractionZone
 
-## The extraction marker. Reports when the player steps inside.
+## The extraction marker. Once the objective is complete, the player must hold
+## position inside the beam for a few seconds to extract (channelled, interruptible).
 ## Turns green when the objective is complete.
 
 signal player_entered
+signal player_exited
+signal channel_progress(ratio: float)
+signal extracted
 
 @export var radius: float = 3.0
 @export var zone_height: float = 5.0
+@export var channel_time: float = 5.0
 
 var is_ready: bool = false
 
 var _beam_material: StandardMaterial3D
 var _ring_material: StandardMaterial3D
 var _light: OmniLight3D
+
+var _inside: bool = false
+var _done: bool = false
+var _channel: float = 0.0
+var _hum_playing: bool = false
 
 const LOCKED_COLOR := Color(0.3, 0.6, 1.0)
 const READY_COLOR := Color(0.3, 1.0, 0.45)
@@ -73,11 +83,51 @@ func _ready() -> void:
 	_light = light
 
 	body_entered.connect(_on_body_entered)
+	body_exited.connect(_on_body_exited)
 	set_ready_state(false)
+
+func _process(delta: float) -> void:
+	if not is_ready or not _inside or _done:
+		return
+	_channel += delta
+	var ratio: float = clampf(_channel / channel_time, 0.0, 1.0)
+	channel_progress.emit(ratio)
+	if not _hum_playing:
+		_hum_playing = true
+		Sfx.start_loop("extract_hum")
+	if _channel >= channel_time:
+		_done = true
+		_stop_hum()
+		Sfx.play("extract_done")
+		extracted.emit()
+
+## Interrupt the channel (e.g. the player took damage). Returns true if a
+## channel was actually in progress and got cancelled.
+func cancel() -> bool:
+	if not is_ready or not _inside or _done or _channel <= 0.0:
+		return false
+	_channel = 0.0
+	_stop_hum()
+	channel_progress.emit(0.0)
+	return true
+
+func _stop_hum() -> void:
+	if _hum_playing:
+		_hum_playing = false
+		Sfx.stop_loop()
 
 func _on_body_entered(body: Node3D) -> void:
 	if body.is_in_group("player"):
+		_inside = true
 		player_entered.emit()
+
+func _on_body_exited(body: Node3D) -> void:
+	if body.is_in_group("player"):
+		_inside = false
+		_channel = 0.0
+		_stop_hum()
+		channel_progress.emit(0.0)
+		player_exited.emit()
 
 func set_ready_state(value: bool) -> void:
 	is_ready = value

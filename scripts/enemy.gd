@@ -6,7 +6,49 @@ class_name Enemy
 
 signal died(enemy: Enemy)
 
-const ENEMY_MODEL := preload("res://assets/kenney/arms/character-a.glb")
+const MODELS := {
+	"raider": preload("res://assets/draft_pack/char_raider.glb"),
+	"hunter": preload("res://assets/draft_pack/char_hunter.glb"),
+	"wolf": preload("res://assets/draft_pack/beast_wolf.glb"),
+	"boar": preload("res://assets/draft_pack/beast_boar.glb"),
+}
+const DEFAULT_VARIANT := "raider"
+
+## Which model/behaviour profile this enemy uses. Set before adding to the
+## tree: `var e := Enemy.new(); e.variant = "wolf"; parent.add_child(e)`.
+@export var variant: String = DEFAULT_VARIANT
+
+static func variant_profile(v: String) -> Dictionary:
+	match v:
+		"wolf":
+			return {
+				"model": MODELS["wolf"], "beast": true,
+				"height": 1.20, "capsule_height": 1.10, "capsule_radius": 0.35, "capsule_y": 0.55,
+				"speed": 5.4, "health": 40.0, "sight": 34.0,
+				"melee_range": 2.0, "melee_damage": 10.0, "melee_interval": 0.8,
+			}
+		"boar":
+			return {
+				"model": MODELS["boar"], "beast": true,
+				"height": 1.00, "capsule_height": 0.95, "capsule_radius": 0.42, "capsule_y": 0.48,
+				"speed": 4.2, "health": 85.0, "sight": 26.0,
+				"melee_range": 2.2, "melee_damage": 20.0, "melee_interval": 1.2,
+			}
+		"hunter":
+			return {
+				"model": MODELS["hunter"], "beast": false,
+				"height": 1.7, "capsule_height": 1.8, "capsule_radius": 0.4, "capsule_y": 0.9,
+				"speed": 2.9, "health": 50.0, "sight": 52.0,
+				"melee_range": 2.2, "melee_damage": 14.0, "melee_interval": 1.0,
+			}
+		_:
+			return {
+				"model": MODELS["raider"], "beast": false,
+				"height": 1.7, "capsule_height": 1.8, "capsule_radius": 0.4, "capsule_y": 0.9,
+				"speed": 3.2, "health": 60.0, "sight": 46.0,
+				"melee_range": 2.2, "melee_damage": 14.0, "melee_interval": 1.0,
+			}
+
 const ProjectileScript := preload("res://scripts/projectile.gd")
 
 enum State { IDLE, ALERT, CHASE, ATTACK, DEAD }
@@ -36,6 +78,8 @@ var state: State = State.IDLE
 
 var _player: Node3D
 var _model: Node3D
+var _profile: Dictionary = {}
+var _is_beast: bool = false
 var _flash_material: StandardMaterial3D
 var _last_seen: Vector3 = Vector3.ZERO
 var _lost_timer: float = 0.0
@@ -44,10 +88,13 @@ var _melee_cd: float = 0.0
 var _wander_dir: Vector3 = Vector3.ZERO
 var _wander_timer: float = 0.0
 var _repath: float = 0.0
+var _growled: bool = false
 
 func _ready() -> void:
 	add_to_group("enemies")
 	add_to_group("damageable")
+
+	_apply_profile(variant_profile(variant))
 
 	health = Health.new()
 	health.max_health = max_health
@@ -58,13 +105,25 @@ func _ready() -> void:
 	_build_body()
 	_player = get_tree().get_first_node_in_group("player")
 
+func _apply_profile(p: Dictionary) -> void:
+	_profile = p
+	_is_beast = bool(p.get("beast", false))
+	model_height = float(p.get("height", model_height))
+	move_speed = float(p.get("speed", move_speed))
+	max_health = float(p.get("health", max_health))
+	sight_range = float(p.get("sight", sight_range))
+	melee_range = float(p.get("melee_range", melee_range))
+	melee_damage = float(p.get("melee_damage", melee_damage))
+	melee_interval = float(p.get("melee_interval", melee_interval))
+	preferred_range = 0.0 if _is_beast else preferred_range
+
 func _build_body() -> void:
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
-	capsule.radius = 0.4
-	capsule.height = 1.8
+	capsule.radius = float(_profile.get("capsule_radius", 0.4))
+	capsule.height = float(_profile.get("capsule_height", 1.8))
 	shape.shape = capsule
-	shape.position = Vector3(0.0, 0.9, 0.0)
+	shape.position = Vector3(0.0, float(_profile.get("capsule_y", 0.9)), 0.0)
 	add_child(shape)
 
 	_flash_material = StandardMaterial3D.new()
@@ -72,7 +131,7 @@ func _build_body() -> void:
 	_flash_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_flash_material.albedo_color = Color(1.0, 1.0, 1.0, 0.0)
 
-	_model = ENEMY_MODEL.instantiate()
+	_model = (_profile.get("model", MODELS[DEFAULT_VARIANT]) as PackedScene).instantiate()
 	_model.rotation.y = PI
 	add_child(_model)
 	_fit_model(_model, model_height)
@@ -129,10 +188,14 @@ func _physics_process(delta: float) -> void:
 		_lost_timer = lose_sight_time
 		if state == State.IDLE or state == State.ALERT:
 			state = State.CHASE
+			if _is_beast and not _growled:
+				_growled = true
+				Sfx.play("wolf_growl" if variant == "wolf" else "boar_snort", -4.0)
 	else:
 		_lost_timer = maxf(0.0, _lost_timer - delta)
 		if _lost_timer <= 0.0 and (state == State.CHASE or state == State.ATTACK or state == State.ALERT):
 			state = State.IDLE
+			_growled = false
 
 	match state:
 		State.IDLE:
@@ -154,6 +217,7 @@ func _wander(delta: float) -> void:
 	if _wander_dir.length_squared() > 0.01:
 		velocity.x = _wander_dir.x * move_speed * 0.4
 		velocity.z = _wander_dir.z * move_speed * 0.4
+		_face(global_position + Vector3(velocity.x, 0.0, velocity.z))
 	else:
 		_stop(delta)
 
@@ -161,7 +225,8 @@ func _chase(delta: float, sees_player: bool) -> void:
 	var to_target := _last_seen - global_position
 	to_target.y = 0.0
 	var distance := to_target.length()
-	if sees_player and _player != null and distance > preferred_range:
+	var hold := preferred_range if not _is_beast else melee_range * 0.8
+	if sees_player and _player != null and distance > hold:
 		_move_toward(_player.global_position, move_speed, delta)
 	elif _player != null and sees_player:
 		_stop(delta)
@@ -179,6 +244,18 @@ func _attack(delta: float, sees_player: bool) -> void:
 		return
 	var to_player := _player.global_position - global_position
 	var distance := Vector2(to_player.x, to_player.z).length()
+
+	if _is_beast:
+		# Melee-only: lunge in, bite, never shoot or strafe.
+		if not sees_player or distance > melee_range * 0.85:
+			state = State.CHASE
+			return
+		_face(_player.global_position)
+		_stop(delta)
+		if _melee_cd <= 0.0:
+			_melee_cd = melee_interval
+			_melee()
+		return
 
 	if distance > preferred_range * 1.4 or not sees_player:
 		state = State.CHASE
@@ -239,6 +316,8 @@ func _can_see_player() -> bool:
 	return collider != null and collider.is_in_group("player")
 
 func _shoot() -> void:
+	if _is_beast:
+		return
 	if _player == null or not is_instance_valid(_player):
 		return
 	var from := global_position + Vector3(0.0, 1.35, 0.0)
@@ -261,6 +340,7 @@ func _shoot() -> void:
 		scene = get_tree().root
 	scene.add_child(projectile)
 	_spawn_muzzle_flash(from)
+	Sfx.play("shot_ar", -10.0, 0.8)
 
 func _spawn_muzzle_flash(at: Vector3) -> void:
 	var flash := OmniLight3D.new()
@@ -307,6 +387,7 @@ func _clear_flash() -> void:
 func _on_died() -> void:
 	state = State.DEAD
 	set_physics_process(false)
+	Sfx.play("beast_die" if _is_beast else "enemy_die", -6.0)
 	died.emit(self)
 	collision_layer = 0
 	collision_mask = 0

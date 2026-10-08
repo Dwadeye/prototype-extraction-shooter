@@ -79,6 +79,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _open() -> void:
 	_opened = true
+	Sfx.play("crate", -4.0)
 	if _hud != null:
 		_hud.set_prompt("")
 	var items: Array = []

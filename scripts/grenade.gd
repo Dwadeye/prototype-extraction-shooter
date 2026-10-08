@@ -62,6 +62,7 @@ func _explode() -> void:
 	if _exploded:
 		return
 	_exploded = true
+	Sfx.play("boom", -3.0)
 
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		var distance: float = enemy.global_position.distance_to(global_position)

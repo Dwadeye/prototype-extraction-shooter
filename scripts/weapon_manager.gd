@@ -6,7 +6,7 @@ class_name WeaponManager
 ## melee swings, and charged grenade throws.
 
 signal weapon_changed(weapon_name: String, kind: String, ammo: int, magazine: int)
-signal ammo_changed(current: int, maximum: int)
+signal ammo_changed(current: int, maximum: int, reserve: int)
 signal reload_state_changed(reloading: bool)
 signal hit_confirmed
 signal charge_changed(ratio: float)
@@ -20,6 +20,7 @@ const SLOT_KEYS := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6]
 var _weapons: Array = []
 var _viewmodels: Array[Node3D] = []
 var _ammo: Array[int] = []
+var _reserve: Array[int] = []
 var _slot: int = 0
 var _cooldown: float = 0.0
 var _reloading: bool = false
@@ -52,6 +53,7 @@ func _ready() -> void:
 		_viewmodels.append(viewmodel)
 		_base_offsets.append(viewmodel.position)
 		_ammo.append(int(def.get("magazine", def.get("count", 0))))
+		_reserve.append(int(def.get("reserve", 0)))
 
 	_show_slot(0)
 
@@ -62,6 +64,7 @@ func current_summary() -> Dictionary:
 		"kind": String(def.get("kind", "gun")),
 		"ammo": _ammo[_slot],
 		"magazine": int(def.get("magazine", def.get("count", 0))),
+		"reserve": _reserve[_slot],
 	}
 
 # --- Input -------------------------------------------------------------------
@@ -149,16 +152,22 @@ func _show_slot(index: int) -> void:
 		_viewmodels[i].visible = (i == index)
 	var summary := current_summary()
 	weapon_changed.emit(String(summary["name"]), String(summary["kind"]), int(summary["ammo"]), int(summary["magazine"]))
+	ammo_changed.emit(_ammo[index], int(_weapons[index].get("magazine", _weapons[index].get("count", 0))), _reserve[index])
 
 # --- Firing ------------------------------------------------------------------
 
 func _fire_gun(def: Dictionary) -> void:
 	if _ammo[_slot] <= 0:
-		_begin_reload()
+		if _reserve[_slot] <= 0:
+			Sfx.play("click")
+			_cooldown = 0.3
+		else:
+			_begin_reload()
 		return
 	_ammo[_slot] -= 1
 	_cooldown = float(def.get("fire_interval", 0.1))
-	ammo_changed.emit(_ammo[_slot], int(def.get("magazine", 0)))
+	ammo_changed.emit(_ammo[_slot], int(def.get("magazine", 0)), _reserve[_slot])
+	Sfx.play(String(def.get("sfx", "shot_ar")), 0.0, randf_range(0.97, 1.03))
 	for i in int(def.get("pellets", 1)):
 		_spawn_bullet(def)
 	_kick(def)
@@ -211,6 +220,7 @@ func _spawn_bullet(def: Dictionary) -> void:
 
 func _swing(def: Dictionary) -> void:
 	_cooldown = float(def.get("fire_interval", 0.4))
+	Sfx.play(String(def.get("sfx", "swing")), 0.0, randf_range(0.97, 1.03))
 	var camera := get_viewport().get_camera_3d()
 	if camera != null:
 		var from := camera.global_position
@@ -252,7 +262,8 @@ func _update_throw(def: Dictionary, delta: float) -> void:
 func _throw(def: Dictionary, ratio: float) -> void:
 	_ammo[_slot] -= 1
 	_cooldown = float(def.get("fire_interval", 0.6))
-	ammo_changed.emit(_ammo[_slot], int(def.get("count", 0)))
+	ammo_changed.emit(_ammo[_slot], int(def.get("count", 0)), 0)
+	Sfx.play(String(def.get("sfx", "throw")), 0.0, randf_range(0.97, 1.03))
 
 	var camera := get_viewport().get_camera_3d()
 	if camera == null:
@@ -286,16 +297,38 @@ func _begin_reload() -> void:
 		return
 	if _ammo[_slot] >= int(def.get("magazine", 0)):
 		return
+	if _reserve[_slot] <= 0:
+		Sfx.play("click")
+		return
 	_reloading = true
 	_reload_timer = float(def.get("reload", 1.5))
+	Sfx.play("reload", -4.0)
 	reload_state_changed.emit(true)
 
 func _finish_reload() -> void:
 	_reloading = false
 	var def: Dictionary = _weapons[_slot]
-	_ammo[_slot] = int(def.get("magazine", 0))
-	ammo_changed.emit(_ammo[_slot], int(def.get("magazine", 0)))
+	var magazine := int(def.get("magazine", 0))
+	var need := magazine - _ammo[_slot]
+	var take: int = mini(need, _reserve[_slot])
+	_ammo[_slot] += take
+	_reserve[_slot] -= take
+	ammo_changed.emit(_ammo[_slot], magazine, _reserve[_slot])
 	reload_state_changed.emit(false)
+
+## True while a reload or grenade charge is in progress (healing is blocked then).
+func is_busy() -> bool:
+	return _reloading or _charging
+
+## Ammo pack: guns gain 60% of a magazine in reserve, grenades gain +1.
+func add_ammo_pack() -> void:
+	for i in _weapons.size():
+		var def: Dictionary = _weapons[i]
+		if String(def.get("kind", "")) == "gun":
+			_reserve[i] += max(1, int(round(int(def.get("magazine", 0)) * 0.6)))
+		else:
+			_reserve[i] += 1
+	ammo_changed.emit(_ammo[_slot], int(_weapons[_slot].get("magazine", _weapons[_slot].get("count", 0))), _reserve[_slot])
 
 # --- View models -------------------------------------------------------------
 

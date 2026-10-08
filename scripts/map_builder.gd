@@ -25,6 +25,8 @@ const BUILDINGS: Array[PackedScene] = [
 	preload("res://assets/kaykit_city/building_F.gltf"),
 	preload("res://assets/kaykit_city/building_G.gltf"),
 	preload("res://assets/kaykit_city/building_H.gltf"),
+	BLD_HOUSE,
+	BLD_RUINED,
 ]
 const BUSH := preload("res://assets/kaykit_city/bush.gltf")
 const STREETLIGHT := preload("res://assets/kaykit_city/streetlight.gltf")
@@ -35,6 +37,13 @@ const BENCH := preload("res://assets/kaykit_city/bench.gltf")
 const TRASH := preload("res://assets/kaykit_city/trash_A.gltf")
 const WATERTWER := preload("res://assets/kaykit_city/watertower.gltf")
 
+# Draft pack (procedural, CC0 — see assets/draft_pack/README.md)
+const BLD_HOUSE := preload("res://assets/draft_pack/bld_house.glb")
+const BLD_RUINED := preload("res://assets/draft_pack/bld_ruined.glb")
+const BLD_WATCHTOWER := preload("res://assets/draft_pack/bld_watchtower.glb")
+const TILE_FLOOR := preload("res://assets/draft_pack/tile_floor_concrete.glb")
+const TILE_DIRT := preload("res://assets/draft_pack/tile_dirt.glb")
+
 const FLOOR_COLOR := Color(0.60, 0.61, 0.64)
 const WALL_COLOR := Color(0.42, 0.44, 0.49)
 const GRASS_COLOR := Color(0.33, 0.46, 0.26)
@@ -42,11 +51,12 @@ const TRUNK_COLOR := Color(0.36, 0.25, 0.15)
 const FOLIAGE_COLOR := Color(0.24, 0.45, 0.24)
 
 static var current_map: String = "town"
-const MAP_ORDER := ["town", "warehouse", "greybox"]
+const MAP_ORDER := ["town", "warehouse", "wilds", "greybox"]
 
 static func title(id: String) -> String:
 	match id:
 		"warehouse": return "Warehouse"
+		"wilds": return "Wilds"
 		"greybox": return "Greybox"
 		_: return "Town"
 
@@ -63,6 +73,9 @@ static func build(id: String, parent: Node3D) -> Dictionary:
 		"warehouse":
 			_build_warehouse(arena)
 			return _warehouse_placements()
+		"wilds":
+			_build_wilds(arena)
+			return _wilds_placements()
 		"greybox":
 			_build_greybox(arena)
 			return _greybox_placements()
@@ -127,6 +140,12 @@ static func _build_town(arena: Node3D) -> void:
 	_prop(arena, DUMPSTER, Vector3(16.5, 0, -16.5), 200.0, 2.4)
 	_prop(arena, WATERTWER, Vector3(34, 0, 34), 0.0, 8.0)
 
+	# Draft-pack landmarks: watchtower by the extraction point, a ruined block
+	# and a house filling out two corners.
+	_prop(arena, BLD_WATCHTOWER, Vector3(6.5, 0, -34), 0.0, 7.0)
+	_prop(arena, BLD_RUINED, Vector3(-36, 0, -36), 180.0, 6.5)
+	_prop(arena, BLD_HOUSE, Vector3(36, 0, -36), 135.0, 6.0)
+
 	# Greenery.
 	var trees := [
 		Vector3(-16, 0, -17), Vector3(16, 0, -17), Vector3(-16, 0, 17), Vector3(16, 0, 17),
@@ -174,6 +193,10 @@ static func _town_placements() -> Dictionary:
 			Vector3(0, 0.2, -12), Vector3(9, 0.2, -2), Vector3(-9, 0.2, 2),
 			Vector3(2, 0.2, 12), Vector3(-2, 0.2, -20), Vector3(20, 0.2, 3),
 			Vector3(-20, 0.2, -3), Vector3(3, 0.2, -36),
+		],
+		"beasts": [
+			Vector3(12, 0.2, -40), Vector3(-12, 0.2, -40), Vector3(40, 0.2, -12),
+			Vector3(-40, 0.2, 12), Vector3(28, 0.2, 40),
 		],
 	}
 
@@ -275,6 +298,10 @@ static func _invisible_wall(parent: Node3D, pos: Vector3, size: Vector3) -> void
 
 static func _build_warehouse(arena: Node3D) -> void:
 	_box(arena, Vector3(0, -0.5, 0), Vector3(40, 1, 40), 0.0, FLOOR_COLOR)
+	# Concrete slab tiles over the floor box (visual only; the box is the collider).
+	for ix in range(-3, 4):
+		for iz in range(-3, 4):
+			_prop(arena, TILE_FLOOR, Vector3(ix * 5.714, -0.29, iz * 5.714), 0.0, 5.714, false)
 	_box(arena, Vector3(0, 3, -20), Vector3(40, 6, 1), 0.0, WALL_COLOR)
 	_box(arena, Vector3(0, 3, 20), Vector3(40, 6, 1), 0.0, WALL_COLOR)
 	_box(arena, Vector3(-20, 3, 0), Vector3(1, 6, 40), 0.0, WALL_COLOR)
@@ -319,6 +346,67 @@ static func _warehouse_placements() -> Dictionary:
 			Vector3(0, 0.2, -8), Vector3(9, 0.2, 7), Vector3(-9, 0.2, 7),
 			Vector3(7, 0.2, -2), Vector3(-7, 0.2, -2),
 			Vector3(15, 0.2, -15), Vector3(-15, 0.2, -15),
+		],
+		"beasts": [
+			Vector3(14, 0.2, -14),
+		],
+	}
+
+# --- Wilds (forest clearing — draft-pack showcase) ---------------------------
+
+static func _build_wilds(arena: Node3D) -> void:
+	_ground(arena, 120.0)
+
+	# Dirt trail from spawn to the watchtower extraction point.
+	for iz in range(-3, 6):
+		_prop(arena, TILE_DIRT, Vector3(0, -0.29, 27.0 - iz * 6.0), 0.0, 6.0, false)
+
+	# Landmarks.
+	_prop(arena, BLD_WATCHTOWER, Vector3(0, 0, -27), 0.0, 7.0)
+	_prop(arena, BLD_RUINED, Vector3(-14, 0, -6), 20.0, 6.5)
+	_prop(arena, BLD_RUINED, Vector3(13, 0, -10), 205.0, 6.0)
+	_prop(arena, BLD_HOUSE, Vector3(18, 0, 18), 180.0, 6.0)
+
+	var trees := [
+		Vector3(-8, 0, 10), Vector3(8, 0, 6), Vector3(-18, 0, 2), Vector3(-24, 0, -14),
+		Vector3(24, 0, -2), Vector3(20, 0, -20), Vector3(-6, 0, -16), Vector3(-20, 0, 14),
+		Vector3(26, 0, 12), Vector3(-28, 0, 24), Vector3(28, 0, 26), Vector3(-26, 0, -26),
+		Vector3(10, 0, -30), Vector3(-12, 0, 30), Vector3(34, 0, 6), Vector3(-34, 0, -6),
+	]
+	for i in trees.size():
+		_tree(arena, trees[i], 1.1 + float(i % 3) * 0.2)
+
+	for i in 40:
+		var angle := float(i) * 2.399963
+		var radius := 8.0 + sqrt(float(i)) * 5.2
+		var p := Vector3(sin(angle) * radius, 0.0, cos(angle) * radius)
+		if absf(p.x) < 3.5 or p.distance_to(Vector3(0, 0, -27)) < 5.0:
+			continue
+		_grass(arena, p)
+
+	_invisible_wall(arena, Vector3(0, 4, -42), Vector3(90, 8, 1))
+	_invisible_wall(arena, Vector3(0, 4, 42), Vector3(90, 8, 1))
+	_invisible_wall(arena, Vector3(-42, 4, 0), Vector3(1, 8, 90))
+	_invisible_wall(arena, Vector3(42, 4, 0), Vector3(1, 8, 90))
+
+static func _wilds_placements() -> Dictionary:
+	return {
+		"title": "Wilds",
+		"player_spawn": Vector3(0, 0.2, 28),
+		"extraction": Vector3(0, 0, -21),
+		"loot": [
+			Vector3(-13, 0, -4), Vector3(-15, 0, -8), Vector3(12, 0, -8), Vector3(14, 0, -12),
+			Vector3(17, 0, 16), Vector3(19, 0, 20), Vector3(-4, 0, 2), Vector3(5, 0, -2),
+		],
+		"containers": [
+			Vector3(-16, 0, -2), Vector3(15, 0, -6), Vector3(16, 0, 14), Vector3(-20, 0, 20),
+		],
+		"enemies": [
+			Vector3(-13, 0.2, -6), Vector3(13, 0.2, -9), Vector3(17, 0.2, 17), Vector3(-2, 0.2, 8),
+		],
+		"beasts": [
+			Vector3(-2, 0.2, 12), Vector3(3, 0.2, 4), Vector3(-4, 0.2, -6),
+			Vector3(22, 0.2, 22), Vector3(-22, 0.2, -18),
 		],
 	}
 

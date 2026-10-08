@@ -26,6 +26,12 @@ var _loot_collected: int = 0
 var _kills: int = 0
 var _game_over: bool = false
 
+var _healing: bool = false
+var _heal_timer: float = 0.0
+var _heal_amount: float = 0.0
+const HEAL_CHANNEL_TIME := 2.5
+var _step_timer: float = 0.0
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
@@ -91,6 +97,9 @@ func _spawn_extraction() -> void:
 	_extraction.position = position
 	add_child(_extraction)
 	_extraction.player_entered.connect(_on_extraction_entered)
+	_extraction.player_exited.connect(_on_extraction_exited)
+	_extraction.channel_progress.connect(_on_channel_progress)
+	_extraction.extracted.connect(_win)
 
 func _spawn_loot() -> void:
 	for position in _map_data.get("loot", []):
@@ -107,20 +116,61 @@ func _spawn_containers() -> void:
 		add_child(container)
 		container.opened.connect(_on_container_opened)
 
+const HUMAN_VARIANTS: Array[String] = ["raider", "raider", "raider", "hunter"]
+const BEAST_VARIANTS: Array[String] = ["wolf", "wolf", "wolf", "boar"]
+
 func _spawn_enemies() -> void:
 	for position in _map_data.get("enemies", []):
 		var enemy := EnemyScript.new() as Enemy
+		enemy.variant = HUMAN_VARIANTS[randi() % HUMAN_VARIANTS.size()]
 		enemy.position = position
 		add_child(enemy)
 		if enemy.health != null:
 			enemy.health.died.connect(_on_enemy_died.bind(enemy))
+	for position in _map_data.get("beasts", []):
+		var beast := EnemyScript.new() as Enemy
+		beast.variant = BEAST_VARIANTS[randi() % BEAST_VARIANTS.size()]
+		beast.position = position
+		add_child(beast)
+		if beast.health != null:
+			beast.health.died.connect(_on_enemy_died.bind(beast))
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if _game_over:
 		return
 	if _player_health != null and _hud != null:
 		_hud.set_health(_player_health.current_health, _player_health.max_health)
+	_update_healing(delta)
+	_update_footsteps(delta)
 	_update_compass()
+
+func _update_healing(delta: float) -> void:
+	if not _healing:
+		return
+	_heal_timer += delta
+	if _hud != null:
+		_hud.set_charge(clampf(_heal_timer / HEAL_CHANNEL_TIME, 0.0, 1.0))
+	if _heal_timer >= HEAL_CHANNEL_TIME:
+		_healing = false
+		if _player_health != null:
+			_player_health.heal(_heal_amount)
+		Sfx.play("heal")
+		if _hud != null:
+			_hud.set_charge(0.0)
+			_hud.set_hint("Healed +%d HP" % int(_heal_amount))
+			_hud.set_carried(_inventory.total_value())
+
+func _update_footsteps(delta: float) -> void:
+	_step_timer -= delta
+	if _step_timer > 0.0 or _player == null:
+		return
+	if not _player.has_method("is_on_floor") or not _player.call("is_on_floor"):
+		return
+	var v: Vector3 = _player.get("velocity") if "velocity" in _player else Vector3.ZERO
+	v.y = 0.0
+	if v.length() > 2.0:
+		Sfx.play("step", -9.0, randf_range(0.94, 1.06))
+		_step_timer = 0.38
 
 func _update_compass() -> void:
 	if _extraction == null or _hud == null:
@@ -146,6 +196,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		if code == KEY_M:
 			switch_map()
 			return
+		if code == KEY_H:
+			_try_heal()
+			return
 		if code == KEY_TAB or code == KEY_I:
 			_hud.toggle_inventory(_inventory_text())
 
@@ -157,10 +210,43 @@ func switch_map() -> void:
 # --- Inventory ---------------------------------------------------------------
 
 func _add_item(item: Dictionary) -> void:
+	# Ammo boxes never enter the bag — they restock weapon reserve directly.
+	if String(item.get("id", "")) == "ammo":
+		if _weapon != null:
+			_weapon.add_ammo_pack()
+		_hud.set_hint("Ammo restocked")
+		return
 	if _inventory.is_full():
 		_hud.set_hint("Bag full — extract to bank your loot")
 		return
 	_inventory.add(item)
+	_hud.set_carried(_inventory.total_value())
+
+## Press H: channel a bandage (+30) or medkit (+75), interrupted by damage.
+func _try_heal() -> void:
+	if _game_over or _player_health == null or _hud == null or _healing:
+		return
+	if _player_health.current_health >= _player_health.max_health:
+		_hud.set_hint("Health already full")
+		return
+	if _weapon != null and _weapon.is_busy():
+		_hud.set_hint("Can't heal while reloading or throwing")
+		return
+	var item := {}
+	if _player_health.max_health - _player_health.current_health >= 60.0 \
+			and _inventory.count_by_id("medkit") > 0:
+		item = _inventory.remove_first_by_id("medkit")
+	elif _inventory.count_by_id("bandage") > 0:
+		item = _inventory.remove_first_by_id("bandage")
+	elif _inventory.count_by_id("medkit") > 0:
+		item = _inventory.remove_first_by_id("medkit")
+	if item.is_empty():
+		_hud.set_hint("No bandages or medkits in your bag")
+		return
+	_healing = true
+	_heal_timer = 0.0
+	_heal_amount = 75.0 if String(item.get("id", "")) == "medkit" else 30.0
+	_hud.set_hint("Using %s…" % String(item.get("name", "medical item")))
 	_hud.set_carried(_inventory.total_value())
 
 func _inventory_text() -> String:
@@ -198,13 +284,22 @@ func _on_container_opened(_container: LootContainer, items: Array) -> void:
 # --- Signal handlers ---------------------------------------------------------
 
 func _on_player_damaged(_amount: float, current: float, maximum: float) -> void:
+	Sfx.play("hurt", -6.0)
 	if _hud != null:
 		_hud.set_health(current, maximum)
+	if _healing:
+		_healing = false
+		if _hud != null:
+			_hud.set_charge(0.0)
+			_hud.set_hint("Healing interrupted!")
+	if _extraction != null and _extraction.cancel() and _hud != null:
+		_hud.set_hint("Extraction interrupted!")
 
 func _on_player_died() -> void:
 	if _game_over:
 		return
 	_game_over = true
+	Sfx.stop_loop()
 	var lost := _inventory.total_value()
 	if Meta != null:
 		Meta.register_death()
@@ -226,15 +321,16 @@ func _on_weapon_changed(weapon_name: String, kind: String, ammo: int, maximum: i
 	if _hud != null:
 		_hud.set_weapon(weapon_name, kind, ammo, maximum)
 
-func _on_ammo_changed(current: int, maximum: int) -> void:
+func _on_ammo_changed(current: int, maximum: int, reserve := -1) -> void:
 	if _hud != null:
-		_hud.set_ammo(current, maximum)
+		_hud.set_ammo(current, maximum, reserve)
 
 func _on_reload_changed(reloading: bool) -> void:
 	if _hud != null:
 		_hud.set_reloading(reloading)
 
 func _on_hit_confirmed() -> void:
+	Sfx.play("hit_tick", -6.0)
 	if _hud != null:
 		_hud.flash_hit()
 
@@ -261,10 +357,19 @@ func _on_extraction_entered() -> void:
 	if _game_over:
 		return
 	if _loot_collected >= _loot_total:
-		_win()
+		if _hud != null:
+			_hud.set_hint("Hold position — extracting…")
 	else:
 		if _hud != null:
 			_hud.set_hint("Collect all intel before extracting (%d / %d)" % [_loot_collected, _loot_total])
+
+func _on_extraction_exited() -> void:
+	if _hud != null:
+		_hud.set_channel(0.0)
+
+func _on_channel_progress(ratio: float) -> void:
+	if _hud != null:
+		_hud.set_channel(ratio)
 
 func _update_objective() -> void:
 	if _hud == null:
@@ -275,7 +380,11 @@ func _update_objective() -> void:
 		_hud.set_objective("Collect intel: %d / %d" % [_loot_collected, _loot_total])
 
 func _win() -> void:
+	if _game_over:
+		return
 	_game_over = true
+	if _hud != null:
+		_hud.set_channel(0.0)
 	var value := _inventory.total_value()
 	if Meta != null:
 		Meta.deposit(_inventory.items)

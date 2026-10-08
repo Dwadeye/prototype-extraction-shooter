@@ -74,5 +74,6 @@ func _process(delta: float) -> void:
 
 func _on_body_entered(body: Node3D) -> void:
 	if body.is_in_group("player"):
+		Sfx.play("pickup", -4.0)
 		collected.emit()
 		queue_free()
