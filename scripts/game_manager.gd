@@ -64,6 +64,12 @@ func _setup_player() -> void:
 		push_error("GameManager: no node in group 'player' was found.")
 		return
 
+	# This manager stays ALWAYS so it can drive the results screen while the
+	# tree is paused. The player must NOT inherit that: if it keeps processing
+	# while paused, proto_controller._unhandled_input() re-captures the mouse on
+	# any left-click, leaving the cursor hidden and frozen after death.
+	_player.process_mode = Node.PROCESS_MODE_PAUSABLE
+
 	_player_health = _player.get_node_or_null("Health") as Health
 	_weapon = _player.get_node_or_null("Head/Weapon Pivot/WeaponManager") as WeaponManager
 
@@ -90,6 +96,11 @@ func _capture_mouse() -> void:
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	if _player != null and "mouse_captured" in _player:
 		_player.set("mouse_captured", true)
+
+func _release_mouse() -> void:
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	if _player != null and "mouse_captured" in _player:
+		_player.set("mouse_captured", false)
 
 func _spawn_extraction() -> void:
 	var position: Vector3 = _map_data.get("extraction", Vector3(0, 0, 0))
@@ -314,7 +325,7 @@ func _on_player_died() -> void:
 			"Press Enter to return to base",
 		])
 	)
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	_release_mouse()
 	get_tree().paused = true
 
 func _on_weapon_changed(weapon_name: String, kind: String, ammo: int, maximum: int) -> void:
@@ -402,7 +413,7 @@ func _win() -> void:
 			"Press Enter to return to base",
 		])
 	)
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	_release_mouse()
 	get_tree().paused = true
 
 func _return_to_menu() -> void:

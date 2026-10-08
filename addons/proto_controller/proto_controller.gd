@@ -59,6 +59,10 @@ func _ready() -> void:
 	look_rotation.x = head.rotation.x
 
 func _unhandled_input(event: InputEvent) -> void:
+	# Never touch mouse capture while the tree is paused (results screen etc.).
+	if get_tree().paused:
+		return
+
 	# Mouse capturing
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		capture_mouse()
