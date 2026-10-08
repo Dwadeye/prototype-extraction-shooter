@@ -1,7 +1,8 @@
 [gd_scene format=3 uid="uid://bs72ogkvdd7d6"]
 
 [ext_resource type="Script" uid="uid://vfqyo1xf8fro" path="res://addons/proto_controller/proto_controller.gd" id="1_ucva2"]
-[ext_resource type="PackedScene" uid="uid://7xdy4mhwah0g" path="res://scenes/proto_gun.tscn" id="2_rji43"]
+[ext_resource type="Script" path="res://scripts/health.gd" id="3_health"]
+[ext_resource type="Script" path="res://scripts/weapon_manager.gd" id="4_weapons"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_iof21"]
 albedo_color = Color(0.91806, 0.575202, 0.222449, 1)
@@ -14,7 +15,7 @@ height = 1.8
 radius = 0.4
 height = 1.8
 
-[node name="ProtoController" type="CharacterBody3D" unique_id=80044437]
+[node name="ProtoController" type="CharacterBody3D" unique_id=80044437 groups=["player"]]
 script = ExtResource("1_ucva2")
 can_sprint = true
 can_freefly = true
@@ -42,7 +43,11 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
 [node name="Camera3D" type="Camera3D" parent="Head" unique_id=571700600]
 
 [node name="Weapon Pivot" type="Node3D" parent="Head" unique_id=949445298]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, -0.39999998, -0.8)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, -0.4, -0.8)
 
-[node name="proto_gun" parent="Head/Weapon Pivot" unique_id=2096342575 instance=ExtResource("2_rji43")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.49999997, 0)
+[node name="WeaponManager" type="Node3D" parent="Head/Weapon Pivot" unique_id=2096342575]
+script = ExtResource("4_weapons")
+
+[node name="Health" type="Node" parent="." unique_id=1970010001]
+script = ExtResource("3_health")
+max_health = 100.0
