@@ -58,6 +58,16 @@ const PH_HAY := preload("res://assets/placeholder/props/Hay.glb")
 const PH_TENT := preload("res://assets/placeholder/props/Tent.glb")
 const PH_BONFIRE := preload("res://assets/placeholder/props/Bonfire_Fire.glb")
 
+# Cohesive modern/sci-fi set (cyberpunk_pack / buildings_pack_3).
+const PH_TURRET := preload("res://assets/placeholder/props/Turret_Gun.glb")
+const PH_COMPUTER := preload("res://assets/placeholder/props/Computer_Large.glb")
+const PH_PIPE := preload("res://assets/placeholder/props/Pipe_1.glb")
+const PH_SIGN := preload("res://assets/placeholder/props/Sign_1.glb")
+const PH_LOOTBOX := preload("res://assets/placeholder/props/Lootbox.glb")
+const BLD_OFFICE := preload("res://assets/placeholder/buildings/Office_2Story.glb")
+const BLD_OFFICE_TALL := preload("res://assets/placeholder/buildings/Office_4Story.glb")
+const BLD_SHOP := preload("res://assets/placeholder/buildings/Shop_2Story.glb")
+
 const FLOOR_COLOR := Color(0.60, 0.61, 0.64)
 const WALL_COLOR := Color(0.42, 0.44, 0.49)
 const GRASS_COLOR := Color(0.33, 0.46, 0.26)
@@ -167,6 +177,13 @@ static func _build_town(arena: Node3D) -> void:
 	_prop(arena, BLD_HOUSE, Vector3(-96, 0, 96), 45.0, 6.0)
 	_prop(arena, BLD_HOUSE, Vector3(96, 0, -96), 225.0, 6.0)
 
+	# Modern district: taller offices + a shop block.
+	_prop(arena, BLD_OFFICE, Vector3(72, 0, 96), 0.0, 12.0)
+	_prop(arena, BLD_OFFICE_TALL, Vector3(-72, 0, 96), 0.0, 17.0)
+	_prop(arena, BLD_SHOP, Vector3(96, 0, 72), 90.0, 10.0)
+	_prop(arena, BLD_OFFICE_TALL, Vector3(96, 0, -72), 270.0, 17.0)
+	_prop(arena, BLD_OFFICE, Vector3(-96, 0, -72), 180.0, 12.0)
+
 	# Greenery.
 	for i in 44:
 		var angle := float(i) * 2.399963
@@ -222,6 +239,8 @@ static func _poi_gas(arena: Node3D, c: Vector3) -> void:
 	_prop(arena, PH_PROPANE, c + Vector3(9.4, 0, 6.6), 0.0, 1.6)
 	_prop(arena, PH_GASCAN, c + Vector3(-7, 0, 6), 0.0, 0.7)
 	_prop(arena, PH_BARREL, c + Vector3(7, 0, -6), 0.0, 1.3)
+	_prop(arena, PH_TURRET, c + Vector3(9.5, 0, -7), 225.0, 2.2)
+	_prop(arena, PH_SIGN, c + Vector3(-9.5, 0, -6), 0.0, 2.6)
 
 static func _poi_camp(arena: Node3D, c: Vector3) -> void:
 	_prop(arena, PH_TENT, c + Vector3(-5, 0, -2), 0.0, 3.4)
@@ -229,6 +248,7 @@ static func _poi_camp(arena: Node3D, c: Vector3) -> void:
 	_prop(arena, PH_BONFIRE, c, 0.0, 1.6)
 	_prop(arena, PH_CRATE, c + Vector3(-2, 0, 4), 10.0, 1.4)
 	_prop(arena, PH_HAY, c + Vector3(8, 0, -5), 30.0, 2.0)
+	_prop(arena, PH_LOOTBOX, c + Vector3(4, 0, -4), 0.0, 1.2)
 
 static func _poi_yard(arena: Node3D, c: Vector3) -> void:
 	for i in 3:
@@ -237,6 +257,10 @@ static func _poi_yard(arena: Node3D, c: Vector3) -> void:
 	_prop(arena, PH_CRATE, c + Vector3(1.6, 0, 6.6), 25.0, 1.4)
 	_prop(arena, PH_BARREL, c + Vector3(-8, 0, -6), 0.0, 1.3)
 	_prop(arena, PH_BARREL, c + Vector3(-6.6, 0, -6.6), 0.0, 1.3)
+	_prop(arena, PH_COMPUTER, c + Vector3(-9, 0, 4), 0.0, 1.6)
+	_prop(arena, PH_COMPUTER, c + Vector3(-7.4, 0, 4.6), 0.0, 1.6)
+	_prop(arena, PH_PIPE, c + Vector3(9, 0, -4), 0.0, 3.0)
+	_prop(arena, PH_LOOTBOX, c + Vector3(6, 0, 5), 0.0, 1.2)
 
 static func _town_placements() -> Dictionary:
 	# Seeded so loot/enemy indices match on every peer (co-op sync relies on it).
