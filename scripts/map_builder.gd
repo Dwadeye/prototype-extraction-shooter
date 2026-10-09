@@ -181,13 +181,15 @@ static func _build_town(arena: Node3D) -> void:
 		var r := 30.0 + sqrt(float(i)) * 16.0
 		_prop(arena, BUSH, Vector3(sin(a) * r, 0.0, cos(a) * r), float((i * 53) % 360), 1.6)
 
+	var grass_positions: Array = []
 	for i in 160:
 		var angle := float(i) * 2.399963
 		var radius := 8.0 + sqrt(float(i)) * 9.0
 		var p := Vector3(sin(angle) * radius, 0.0, cos(angle) * radius)
 		if absf(p.x) < 5.0 or absf(p.z) < 5.0:
 			continue
-		_grass(arena, p)
+		grass_positions.append(p)
+	_grass_field(arena, grass_positions)
 
 	# Perimeter.
 	_invisible_wall(arena, Vector3(0, 4, -126), Vector3(252, 8, 1))
@@ -369,6 +371,27 @@ static func _grass(parent: Node3D, pos: Vector3) -> void:
 	tuft.material_override = _material(GRASS_COLOR.lightened(0.12))
 	parent.add_child(tuft)
 
+## Draws a whole field of grass tufts as one MultiMeshInstance3D (1 draw call).
+static func _grass_field(parent: Node3D, positions: Array) -> void:
+	if positions.is_empty():
+		return
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.0
+	mesh.bottom_radius = 0.16
+	mesh.height = 0.45
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = mesh
+	mm.instance_count = positions.size()
+	for i in positions.size():
+		var p: Vector3 = positions[i]
+		var basis := Basis(Vector3.UP, p.x * 1.7)
+		mm.set_instance_transform(i, Transform3D(basis, p + Vector3(0, 0.22, 0)))
+	var mmi := MultiMeshInstance3D.new()
+	mmi.multimesh = mm
+	mmi.material_override = _material(GRASS_COLOR.lightened(0.12))
+	parent.add_child(mmi)
+
 static func _invisible_wall(parent: Node3D, pos: Vector3, size: Vector3) -> void:
 	var body := StaticBody3D.new()
 	body.position = pos
@@ -461,13 +484,15 @@ static func _build_wilds(arena: Node3D) -> void:
 	for i in trees.size():
 		_tree(arena, trees[i], 1.1 + float(i % 3) * 0.2)
 
+	var wilds_grass: Array = []
 	for i in 40:
 		var angle := float(i) * 2.399963
 		var radius := 8.0 + sqrt(float(i)) * 5.2
 		var p := Vector3(sin(angle) * radius, 0.0, cos(angle) * radius)
 		if absf(p.x) < 3.5 or p.distance_to(Vector3(0, 0, -27)) < 5.0:
 			continue
-		_grass(arena, p)
+		wilds_grass.append(p)
+	_grass_field(arena, wilds_grass)
 
 	_invisible_wall(arena, Vector3(0, 4, -42), Vector3(90, 8, 1))
 	_invisible_wall(arena, Vector3(0, 4, 42), Vector3(90, 8, 1))
