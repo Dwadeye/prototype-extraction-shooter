@@ -7,6 +7,9 @@ class_name Enemy
 ## Enemies use rigged, animated CC0 models (Quaternius). An AnimationPlayer in
 ## the model is driven from the AI state machine (idle / walk / run / shoot /
 ## attack / hit / death).
+##
+## In co-op the host runs the AI and streams snapshots; clients spawn "puppet"
+## copies that only display the streamed transform/animation.
 
 signal died(enemy: Enemy)
 
@@ -23,6 +26,11 @@ const DEFAULT_VARIANT := "raider"
 ## Which model/behaviour profile this enemy uses. Set before adding to the
 ## tree: `var e := Enemy.new(); e.variant = "wolf"; parent.add_child(e)`.
 @export var variant: String = DEFAULT_VARIANT
+
+## Client-side mirror driven by host snapshots (no AI, no collision damage).
+var puppet: bool = false
+## Stable id assigned by the host for snapshot matching.
+var net_id: int = 0
 
 static func variant_profile(v: String) -> Dictionary:
 	match v:
@@ -98,7 +106,9 @@ var _growled: bool = false
 var _anim: AnimationPlayer
 var _clips: Dictionary = {}
 var _current_clip: String = ""
+var _current_action: String = "idle"
 var _action_lock: float = 0.0
+var _puppet_dead: bool = false
 
 func _ready() -> void:
 	add_to_group("enemies")
@@ -245,6 +255,7 @@ func _play_action(action: String) -> void:
 	var clip := _clip_for(action)
 	if clip == "":
 		return
+	_current_action = action
 	_play_clip(clip, 1.0, true)
 	var anim := _anim.get_animation(clip)
 	if anim != null:
@@ -257,23 +268,64 @@ func _update_animation(_delta: float) -> void:
 	var moving := speed > 0.35
 	match state:
 		State.IDLE, State.ALERT:
-			_play_clip(_clip_for("idle"))
+			_current_action = "idle"
+			_play_clip(_clip_for(_current_action))
 		State.CHASE:
 			if _is_beast:
-				_play_clip(_clip_for("run" if moving else "idle"), clampf(speed / maxf(move_speed, 0.1), 0.7, 1.6))
+				_current_action = "run" if moving else "idle"
+				_play_clip(_clip_for(_current_action), clampf(speed / maxf(move_speed, 0.1), 0.7, 1.6))
 			else:
-				_play_clip(_clip_for("walk" if moving else "idle"))
+				_current_action = "walk" if moving else "idle"
+				_play_clip(_clip_for(_current_action))
 		State.ATTACK:
-			_play_clip(_clip_for("idle") if _is_beast else _clip_for("shoot"))
+			_current_action = "idle" if _is_beast else "shoot"
+			_play_clip(_clip_for(_current_action))
 		_:
 			pass
+
+# --- Network (host -> client mirror) ----------------------------------------
+
+func net_action() -> String:
+	return _current_action
+
+func is_dead() -> bool:
+	return state == State.DEAD
+
+## Client-side mirror: apply a host snapshot.
+func apply_net(pos: Vector3, yaw: float, action: String, dead: bool) -> void:
+	global_position = pos
+	rotation.y = yaw
+	if dead:
+		if not _puppet_dead:
+			_puppet_dead = true
+			var clip := _clip_for("death")
+			if _anim != null and clip != "":
+				_anim.stop()
+				_anim.play(clip)
+		return
+	if _anim == null:
+		return
+	_current_action = action
+	_play_clip(_clip_for(action))
 
 func take_damage(amount: float) -> void:
 	if health != null:
 		health.take_damage(amount)
 
+func _acquire_target() -> void:
+	var best: Node3D = null
+	var best_d := INF
+	for node in get_tree().get_nodes_in_group("player"):
+		if not is_instance_valid(node):
+			continue
+		var d := global_position.distance_squared_to(node.global_position)
+		if d < best_d:
+			best_d = d
+			best = node
+	_player = best
+
 func _physics_process(delta: float) -> void:
-	if state == State.DEAD:
+	if puppet or state == State.DEAD:
 		return
 
 	if not is_on_floor():
@@ -285,8 +337,7 @@ func _physics_process(delta: float) -> void:
 	_repath -= delta
 	_action_lock = maxf(0.0, _action_lock - delta)
 
-	if _player == null or not is_instance_valid(_player):
-		_player = get_tree().get_first_node_in_group("player")
+	_acquire_target()
 
 	var sees_player := _can_see_player()
 	if sees_player:

@@ -14,6 +14,9 @@ const LOOT_MODEL := preload("res://assets/kenney/blaster-kit/crate-small.glb")
 var _model: Node3D
 var _time: float = 0.0
 
+## Index in the host's loot list (assigned by game_manager) for network sync.
+var net_id: int = 0
+
 func _ready() -> void:
 	add_to_group("loot")
 
@@ -73,7 +76,22 @@ func _process(delta: float) -> void:
 		_model.position.y = hover_height + sin(_time * 2.2) * 0.12
 
 func _on_body_entered(body: Node3D) -> void:
-	if body.is_in_group("player"):
-		Sfx.play("pickup", -4.0)
-		collected.emit()
-		queue_free()
+	if not body.is_in_group("player"):
+		return
+	# Proxies never collect; only the peer that owns a player reports pickups.
+	if body is RemotePlayer:
+		return
+	if Net.active and not Net.is_host():
+		var coop := get_tree().current_scene.get_node_or_null("CoopNet")
+		if coop != null:
+			coop.request_pickup(net_id)
+		return
+	_collect()
+
+func collect_remote() -> void:
+	_collect()
+
+func _collect() -> void:
+	Sfx.play("pickup", -4.0)
+	collected.emit()
+	queue_free()

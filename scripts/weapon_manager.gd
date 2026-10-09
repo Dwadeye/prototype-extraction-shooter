@@ -189,8 +189,11 @@ func _fire_gun(def: Dictionary) -> void:
 	_cooldown = float(def.get("fire_interval", 0.1))
 	ammo_changed.emit(_ammo[_slot], int(def.get("magazine", 0)), _reserve[_slot])
 	Sfx.play(String(def.get("sfx", "shot_ar")), 0.0, randf_range(0.97, 1.03))
-	for i in int(def.get("pellets", 1)):
-		_spawn_bullet(def)
+	if _net_is_client():
+		_report_fire(def)
+	else:
+		for i in int(def.get("pellets", 1)):
+			_spawn_bullet(def)
 	_kick(def)
 
 func _spawn_bullet(def: Dictionary) -> void:
@@ -242,6 +245,10 @@ func _spawn_bullet(def: Dictionary) -> void:
 func _swing(def: Dictionary) -> void:
 	_cooldown = float(def.get("fire_interval", 0.4))
 	Sfx.play(String(def.get("sfx", "swing")), 0.0, randf_range(0.97, 1.03))
+	if _net_is_client():
+		_report_fire(def)
+		_swing_animation()
+		return
 	var camera := get_viewport().get_camera_3d()
 	if camera != null:
 		var from := camera.global_position
@@ -460,6 +467,18 @@ func _kick(_def: Dictionary) -> void:
 
 func _swing_animation() -> void:
 	_melee_anim = 1.0
+
+func _net_is_client() -> bool:
+	return Net.active and not Net.is_host()
+
+## In co-op the host owns damage: clients report the shot instead of resolving it.
+func _report_fire(def: Dictionary) -> void:
+	var camera := get_viewport().get_camera_3d()
+	if camera == null:
+		return
+	var coop := get_tree().current_scene.get_node_or_null("CoopNet")
+	if coop != null:
+		coop.report_fire(camera.global_position, -camera.global_transform.basis.z, float(def.get("damage", 25.0)))
 
 func _on_projectile_hit() -> void:
 	hit_confirmed.emit()

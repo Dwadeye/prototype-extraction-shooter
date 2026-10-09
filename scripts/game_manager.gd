@@ -12,8 +12,13 @@ const EnemyScript := preload("res://scripts/enemy.gd")
 const ExtractionZoneScript := preload("res://scripts/extraction_zone.gd")
 const HUDScript := preload("res://scripts/hud.gd")
 const LootContainerScript := preload("res://scripts/loot_container.gd")
+const CoopNetScript := preload("res://scripts/coop_net.gd")
 
 var _player: Node3D
+var _is_net: bool = false
+var _is_host: bool = true
+var _coop: CoopNet
+var _loot_by_index: Dictionary = {}
 var _weapon: WeaponManager
 var _player_health: Health
 var _hud: HUD
@@ -35,6 +40,9 @@ var _step_timer: float = 0.0
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
+	_is_net = Net.active
+	_is_host = not _is_net or multiplayer.is_server()
+
 	_player = get_tree().get_first_node_in_group("player")
 	_inventory = Inventory.new()
 
@@ -46,7 +54,13 @@ func _ready() -> void:
 	_spawn_extraction()
 	_spawn_loot()
 	_spawn_containers()
-	_spawn_enemies()
+	if _is_host:
+		_spawn_enemies()
+	if _is_net:
+		_coop = CoopNetScript.new() as CoopNet
+		_coop.name = "CoopNet"
+		add_child(_coop)
+		_coop.setup(self)
 	_capture_mouse()
 
 	if _player_health != null:
@@ -113,12 +127,16 @@ func _spawn_extraction() -> void:
 	_extraction.extracted.connect(_win)
 
 func _spawn_loot() -> void:
+	var index := 0
 	for position in _map_data.get("loot", []):
 		var loot := LootScript.new() as Loot
+		loot.net_id = index
 		loot.position = position
 		add_child(loot)
-		loot.collected.connect(_on_loot_collected)
+		loot.collected.connect(_on_loot_collected.bind(index))
+		_loot_by_index[index] = loot
 		_loot_total += 1
+		index += 1
 
 func _spawn_containers() -> void:
 	for position in _map_data.get("containers", []):
@@ -131,8 +149,11 @@ const HUMAN_VARIANTS: Array[String] = ["raider", "raider", "raider", "hunter"]
 const BEAST_VARIANTS: Array[String] = ["wolf", "wolf", "wolf", "boar"]
 
 func _spawn_enemies() -> void:
+	var net_id := 1
 	for position in _map_data.get("enemies", []):
 		var enemy := EnemyScript.new() as Enemy
+		enemy.net_id = net_id
+		net_id += 1
 		enemy.variant = HUMAN_VARIANTS[randi() % HUMAN_VARIANTS.size()]
 		enemy.position = position
 		add_child(enemy)
@@ -140,6 +161,8 @@ func _spawn_enemies() -> void:
 			enemy.health.died.connect(_on_enemy_died.bind(enemy))
 	for position in _map_data.get("beasts", []):
 		var beast := EnemyScript.new() as Enemy
+		beast.net_id = net_id
+		net_id += 1
 		beast.variant = BEAST_VARIANTS[randi() % BEAST_VARIANTS.size()]
 		beast.position = position
 		add_child(beast)
@@ -214,6 +237,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			_hud.toggle_inventory(_inventory_text())
 
 func switch_map() -> void:
+	if _is_net:
+		if _hud != null:
+			_hud.set_hint("Map switching is disabled in co-op")
+		return
 	MapBuilder.cycle()
 	get_tree().paused = false
 	get_tree().reload_current_scene()
@@ -353,13 +380,17 @@ func _on_ads_changed(scoped: bool) -> void:
 	if _hud != null:
 		_hud.set_scope_visible(scoped)
 
-func _on_loot_collected() -> void:
+func _on_loot_collected(index: int) -> void:
+	_loot_by_index.erase(index)
 	_loot_collected += 1
 	_add_item(ItemDefs.random_item())
 	_update_objective()
 	if _loot_collected >= _loot_total and _extraction != null:
 		_extraction.set_ready_state(true)
 		_hud.set_hint("Intel secured. Reach the extraction marker!")
+	if _coop != null:
+		_coop.broadcast_loot_taken(index)
+		_coop.broadcast_intel(_loot_collected)
 
 func _on_enemy_died(_enemy: Enemy) -> void:
 	_kills += 1
@@ -419,3 +450,31 @@ func _win() -> void:
 func _return_to_menu() -> void:
 	get_tree().paused = false
 	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+
+# --- Co-op hooks -------------------------------------------------------------
+
+func get_local_player() -> Node3D:
+	return _player
+
+## Host: a client asked to pick up loot `index`; validate range, then collect.
+func host_try_pickup(index: int, from_position: Vector3) -> void:
+	var loot = _loot_by_index.get(index)
+	if loot == null or not is_instance_valid(loot):
+		return
+	if from_position.distance_to(loot.global_position) > 3.5:
+		return
+	loot.collect_remote()
+
+## Everyone: the host removed loot `index` (remote pickup or its own).
+func on_loot_taken_remote(index: int) -> void:
+	var loot = _loot_by_index.get(index)
+	if loot != null and is_instance_valid(loot):
+		loot.queue_free()
+	_loot_by_index.erase(index)
+
+## Client: the host's shared intel count changed.
+func on_intel_remote(count: int) -> void:
+	_loot_collected = count
+	_update_objective()
+	if _extraction != null and _loot_collected >= _loot_total:
+		_extraction.set_ready_state(true)

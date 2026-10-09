@@ -64,11 +64,13 @@ func _explode() -> void:
 	_exploded = true
 	Sfx.play("boom", -3.0)
 
-	for enemy in get_tree().get_nodes_in_group("enemies"):
-		var distance: float = enemy.global_position.distance_to(global_position)
-		if distance <= radius and enemy.has_method("take_damage"):
-			var falloff: float = 1.0 - distance / radius
-			enemy.take_damage(damage * maxf(falloff, 0.2))
+	# Damage is host-authoritative; clients only play the explosion.
+	if not (Net.active and not Net.is_host()):
+		for enemy in get_tree().get_nodes_in_group("enemies"):
+			var distance: float = enemy.global_position.distance_to(global_position)
+			if distance <= radius and enemy.has_method("take_damage"):
+				var falloff: float = 1.0 - distance / radius
+				enemy.take_damage(damage * maxf(falloff, 0.2))
 
 	_spawn_explosion()
 	queue_free()

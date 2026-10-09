@@ -117,12 +117,12 @@ func _stop_hum() -> void:
 		Sfx.stop_loop()
 
 func _on_body_entered(body: Node3D) -> void:
-	if body.is_in_group("player"):
+	if body.is_in_group("player") and not body is RemotePlayer:
 		_inside = true
 		player_entered.emit()
 
 func _on_body_exited(body: Node3D) -> void:
-	if body.is_in_group("player"):
+	if body.is_in_group("player") and not body is RemotePlayer:
 		_inside = false
 		_channel = 0.0
 		_stop_hum()
