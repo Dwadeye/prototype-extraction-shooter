@@ -16,6 +16,10 @@ var _time: float = 0.0
 
 ## Index in the host's loot list (assigned by game_manager) for network sync.
 var net_id: int = 0
+## Objective item (counts toward extraction) vs. optional loot.
+@export var is_intel: bool = false
+## If set, collecting yields this item instead of a random one (enemy drops).
+var drop_item: Dictionary = {}
 
 func _ready() -> void:
 	add_to_group("loot")
@@ -33,9 +37,9 @@ func _ready() -> void:
 	_model.position.y += hover_height
 
 	var light := OmniLight3D.new()
-	light.light_color = Color(1.0, 0.8, 0.3)
-	light.light_energy = 1.5
-	light.omni_range = 3.5
+	light.light_color = Color(0.4, 0.9, 1.0) if is_intel else Color(1.0, 0.8, 0.3)
+	light.light_energy = 2.4 if is_intel else 1.5
+	light.omni_range = 4.0 if is_intel else 3.5
 	light.position = Vector3(0.0, hover_height + 0.3, 0.0)
 	add_child(light)
 

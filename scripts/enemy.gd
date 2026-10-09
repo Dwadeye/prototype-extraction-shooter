@@ -38,28 +38,28 @@ static func variant_profile(v: String) -> Dictionary:
 			return {
 				"model": MODELS["wolf"], "beast": true,
 				"height": 1.20, "capsule_height": 1.10, "capsule_radius": 0.35, "capsule_y": 0.55,
-				"speed": 5.4, "health": 40.0, "sight": 34.0,
+				"speed": 5.8, "health": 40.0, "sight": 34.0,
 				"melee_range": 2.0, "melee_damage": 10.0, "melee_interval": 0.8,
 			}
 		"boar":
 			return {
 				"model": MODELS["boar"], "beast": true,
 				"height": 1.00, "capsule_height": 0.95, "capsule_radius": 0.42, "capsule_y": 0.48,
-				"speed": 4.2, "health": 85.0, "sight": 26.0,
+				"speed": 4.6, "health": 85.0, "sight": 26.0,
 				"melee_range": 2.2, "melee_damage": 20.0, "melee_interval": 1.2,
 			}
 		"hunter":
 			return {
 				"model": MODELS["hunter"], "beast": false,
 				"height": 1.7, "capsule_height": 1.8, "capsule_radius": 0.4, "capsule_y": 0.9,
-				"speed": 2.9, "health": 50.0, "sight": 52.0,
+				"speed": 3.3, "health": 50.0, "sight": 52.0,
 				"melee_range": 2.2, "melee_damage": 14.0, "melee_interval": 1.0,
 			}
 		_:
 			return {
 				"model": MODELS["raider"], "beast": false,
 				"height": 1.7, "capsule_height": 1.8, "capsule_radius": 0.4, "capsule_y": 0.9,
-				"speed": 3.2, "health": 60.0, "sight": 46.0,
+				"speed": 3.6, "health": 60.0, "sight": 46.0,
 				"melee_range": 2.2, "melee_damage": 14.0, "melee_interval": 1.0,
 			}
 

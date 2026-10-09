@@ -8,6 +8,15 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
+	if "shop" in args:
+		root.add_child(load("res://scenes/shop.tscn").instantiate())
+		for i in 30:
+			await process_frame
+		var img: Image = root.get_texture().get_image()
+		img.save_png("res://tools/shot.png")
+		print("SHOT saved=res://tools/shot.png err=0")
+		quit()
+		return
 	for map_name in ["town", "warehouse", "wilds", "greybox"]:
 		if map_name in args:
 			MapBuilder.current_map = map_name

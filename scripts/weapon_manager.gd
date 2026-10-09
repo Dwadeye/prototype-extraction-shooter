@@ -23,6 +23,7 @@ const SLOT_KEYS := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6]
 
 var _weapons: Array = []
 var _viewmodels: Array[Node3D] = []
+var _owned: Array[bool] = []
 var _ammo: Array[int] = []
 var _reserve: Array[int] = []
 var _slot: int = 0
@@ -60,17 +61,21 @@ func _ready() -> void:
 	add_child(_holder)
 
 	for def in _weapons:
+		var owned := Meta.owns_weapon(String(def.get("slot", "")))
+		_owned.append(owned)
 		var viewmodel := _make_viewmodel(def)
 		_viewmodels.append(viewmodel)
 		_base_offsets.append(viewmodel.position)
 		_base_rots.append(viewmodel.rotation_degrees)
 		_ammo.append(int(def.get("magazine", def.get("count", 0))))
-		_reserve.append(int(def.get("reserve", 0)))
+		_reserve.append(int(def.get("reserve", 0)) if owned else 0)
+		viewmodel.visible = false
 
 	if _player != null and "look_rotation" in _player:
 		_last_look = _player.get("look_rotation")
 
-	_show_slot(0)
+	_slot = _first_owned()
+	_show_slot(_slot)
 
 func current_summary() -> Dictionary:
 	var def: Dictionary = _weapons[_slot]
@@ -145,13 +150,15 @@ func _update_ads(delta: float) -> void:
 		_last_scoped = scoped
 		ads_changed.emit(scoped)
 
-	if _slot < _viewmodels.size():
+	if _slot < _viewmodels.size() and _owned[_slot]:
 		_viewmodels[_slot].visible = not scoped
 
 # --- Slots -------------------------------------------------------------------
 
 func _select(index: int) -> void:
 	if index < 0 or index >= _weapons.size() or index == _slot:
+		return
+	if not _owned[index]:
 		return
 	_slot = index
 	_reloading = false
@@ -163,11 +170,44 @@ func _select(index: int) -> void:
 	_show_slot(index)
 
 func _cycle(direction: int) -> void:
-	_select((_slot + direction + _weapons.size()) % _weapons.size())
+	var n := _weapons.size()
+	var i := _slot
+	for step in n:
+		i = (i + direction + n) % n
+		if _owned[i]:
+			_select(i)
+			return
+
+func _first_owned() -> int:
+	for i in _owned.size():
+		if _owned[i]:
+			return i
+	return 0
+
+## Grants a weapon (found in a raid or bought). `slot_name` is the def's slot.
+func unlock(slot_name: String, reserve: int) -> bool:
+	for i in _weapons.size():
+		if String(_weapons[i].get("slot", "")) != slot_name:
+			continue
+		if _owned[i]:
+			_reserve[i] += reserve
+			ammo_changed.emit(_ammo[_slot], int(_weapons[_slot].get("magazine", _weapons[_slot].get("count", 0))), _reserve[_slot])
+			return true
+		_owned[i] = true
+		_reserve[i] = maxi(reserve, int(_weapons[i].get("pickup_reserve", reserve)))
+		_select(i)
+		return true
+	return false
+
+func has_weapon(slot_name: String) -> bool:
+	for i in _weapons.size():
+		if String(_weapons[i].get("slot", "")) == slot_name:
+			return _owned[i]
+	return false
 
 func _show_slot(index: int) -> void:
 	for i in _viewmodels.size():
-		_viewmodels[i].visible = (i == index)
+		_viewmodels[i].visible = (i == index and _owned[i])
 		if i == index and i < _base_offsets.size():
 			_viewmodels[i].position = _base_offsets[i]
 			_viewmodels[i].rotation_degrees = _base_rots[i]
@@ -352,6 +392,8 @@ func is_busy() -> bool:
 ## Ammo pack: guns gain 60% of a magazine in reserve, grenades gain +1.
 func add_ammo_pack() -> void:
 	for i in _weapons.size():
+		if not _owned[i]:
+			continue
 		var def: Dictionary = _weapons[i]
 		if String(def.get("kind", "")) == "gun":
 			_reserve[i] += max(1, int(round(int(def.get("magazine", 0)) * 0.6)))
@@ -405,7 +447,7 @@ func _aabb_in(root: Node3D) -> AABB:
 ## Procedural first-person animation: sway, bob, recoil, melee swing, reload dip
 ## and ADS raise, all layered onto the slot's base pose.
 func _update_viewmodel(delta: float) -> void:
-	if _slot >= _viewmodels.size() or _slot >= _base_offsets.size():
+	if _slot >= _viewmodels.size() or _slot >= _base_offsets.size() or not _owned[_slot]:
 		return
 	var vm := _viewmodels[_slot]
 	var def: Dictionary = _weapons[_slot]

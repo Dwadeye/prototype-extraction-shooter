@@ -56,6 +56,12 @@ func _ready() -> void:
 	host.pressed.connect(_on_host)
 	vbox.add_child(host)
 
+	var shop := Button.new()
+	shop.text = "SHOP"
+	shop.custom_minimum_size = Vector2(260, 42)
+	shop.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/shop.tscn"))
+	vbox.add_child(shop)
+
 	var join_row := HBoxContainer.new()
 	join_row.add_theme_constant_override("separation", 8)
 	join_row.alignment = BoxContainer.ALIGNMENT_CENTER

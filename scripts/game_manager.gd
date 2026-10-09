@@ -167,12 +167,13 @@ func _spawn_loot() -> void:
 	for position in _map_data.get("loot", []):
 		var loot := LootScript.new() as Loot
 		loot.net_id = index
+		loot.is_intel = index < INTEL_TARGET
 		loot.position = position
 		add_child(loot)
-		loot.collected.connect(_on_loot_collected.bind(index))
+		loot.collected.connect(_on_loot_collected.bind(index, loot.is_intel))
 		_loot_by_index[index] = loot
-		_loot_total += 1
 		index += 1
+	_loot_total = mini(INTEL_TARGET, index)
 
 func _spawn_containers() -> void:
 	for position in _map_data.get("containers", []):
@@ -183,6 +184,9 @@ func _spawn_containers() -> void:
 
 const HUMAN_VARIANTS: Array[String] = ["raider", "raider", "raider", "hunter"]
 const BEAST_VARIANTS: Array[String] = ["wolf", "wolf", "wolf", "boar"]
+
+## Only this many of the loot spawns are objective intel; the rest are optional loot.
+const INTEL_TARGET := 3
 
 func _spawn_enemies() -> void:
 	var net_id := 1
@@ -308,6 +312,12 @@ func _add_item(item: Dictionary) -> void:
 		if _weapon != null:
 			_weapon.add_ammo_pack()
 		_hud.set_hint("Ammo restocked")
+		return
+	# Weapons unlock a slot instead of taking bag space.
+	if String(item.get("type", "")) == "weapon":
+		if _weapon != null:
+			_weapon.unlock(String(item.get("weapon", "")), int(item.get("reserve", 0)))
+			_hud.set_hint("Picked up %s — press its number to equip" % String(item.get("name", "weapon")))
 		return
 	if _inventory.is_full():
 		_hud.set_hint("Bag full — extract to bank your loot")
@@ -435,20 +445,41 @@ func _on_ads_changed(scoped: bool) -> void:
 	if _hud != null:
 		_hud.set_scope_visible(scoped)
 
-func _on_loot_collected(index: int) -> void:
+func _on_loot_collected(index: int, is_intel: bool) -> void:
 	_loot_by_index.erase(index)
-	_loot_collected += 1
-	_add_item(ItemDefs.random_item())
-	_update_objective()
-	if _loot_collected >= _loot_total:
-		_set_extractions_ready(true)
-		_hud.set_hint("Intel secured. Reach the extraction marker!")
+	if is_intel:
+		_loot_collected += 1
+		_update_objective()
+		if _loot_collected >= _loot_total:
+			_set_extractions_ready(true)
+			_hud.set_hint("Intel secured. Reach the extraction marker!")
+	else:
+		_add_item(ItemDefs.random_item())
 	if _coop != null:
 		_coop.broadcast_loot_taken(index)
 		_coop.broadcast_intel(_loot_collected)
 
-func _on_enemy_died(_enemy: Enemy) -> void:
+func _on_enemy_died(enemy: Enemy) -> void:
 	_kills += 1
+	_drop_from_enemy(enemy)
+
+## Enemies drop ammo, or sometimes a weapon, where they fell.
+func _drop_from_enemy(enemy: Enemy) -> void:
+	if not is_instance_valid(enemy):
+		return
+	var drop := LootScript.new() as Loot
+	drop.drop_item = _random_drop()
+	drop.position = enemy.global_position + Vector3(0, 0.2, 0)
+	add_child(drop)
+	drop.collected.connect(_on_drop_collected.bind(drop.drop_item))
+
+func _random_drop() -> Dictionary:
+	var table := ["ammo", "ammo", "ammo", "wep_ar", "wep_grenade", "wep_sniper"]
+	return ItemDefs.by_id(table[randi() % table.size()])
+
+func _on_drop_collected(item: Dictionary) -> void:
+	if not item.is_empty():
+		_add_item(item)
 
 func _on_extraction_entered() -> void:
 	if _game_over:
@@ -485,6 +516,12 @@ func _win() -> void:
 	var value := _inventory.total_value()
 	if Meta != null:
 		Meta.deposit(_inventory.items)
+		# Weapons found during the raid are kept on a successful extraction.
+		if _weapon != null:
+			for slot in ["primary", "utility", "sniper"]:
+				if _weapon.has_weapon(slot) and not Meta.owns_weapon(slot):
+					Meta.owned_weapons.append(slot)
+			Meta.save_game()
 	_inventory.clear()
 	_hud.set_carried(0)
 	_hud.show_results(

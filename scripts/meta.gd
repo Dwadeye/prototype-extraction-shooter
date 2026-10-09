@@ -10,6 +10,8 @@ var extractions: int = 0
 var deaths: int = 0
 var best_extract: int = 0
 var stash: Array = []
+## Weapon slots the player owns (start with pistol + knife; buy or extract more).
+var owned_weapons: Array = ["secondary", "melee"]
 
 var settings: Dictionary = {}
 const DEFAULT_SETTINGS := {
@@ -48,6 +50,7 @@ func load_game() -> void:
 	deaths = int(data.get("deaths", 0))
 	best_extract = int(data.get("best_extract", 0))
 	stash = data.get("stash", [])
+	owned_weapons = data.get("owned_weapons", ["secondary", "melee"])
 	if data.get("settings") is Dictionary:
 		settings.merge(data["settings"], true)
 	_migrate(int(data.get("save_version", 1)))
@@ -68,6 +71,7 @@ func save_game() -> void:
 		"deaths": deaths,
 		"best_extract": best_extract,
 		"stash": stash,
+		"owned_weapons": owned_weapons,
 		"settings": settings,
 	}))
 
@@ -91,6 +95,20 @@ func stash_value() -> int:
 	for item in stash:
 		value += int(item.get("value", 0))
 	return value
+
+func owns_weapon(slot: String) -> bool:
+	return owned_weapons.has(slot)
+
+## Returns true if the purchase went through.
+func buy_weapon(slot: String, price: int) -> bool:
+	if owns_weapon(slot):
+		return false
+	if currency < price:
+		return false
+	currency -= price
+	owned_weapons.append(slot)
+	save_game()
+	return true
 
 func reset() -> void:
 	currency = 0

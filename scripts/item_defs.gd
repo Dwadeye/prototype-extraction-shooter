@@ -20,6 +20,9 @@ const ITEMS: Array[Dictionary] = [
 	{"id": "armor_2", "name": "Plate Carrier", "value": 980, "color": Color(0.35, 0.45, 0.55), "type": "armor", "armor": 0.30, "armor_points": 110.0},
 	{"id": "rig_1", "name": "Tactical Rig", "value": 420, "color": Color(0.55, 0.45, 0.35), "type": "rig", "capacity": 4},
 	{"id": "backpack_1", "name": "Assault Backpack", "value": 640, "color": Color(0.45, 0.40, 0.35), "type": "backpack", "capacity": 8},
+	{"id": "wep_ar", "name": "Ranger AR", "value": 700, "color": Color(0.45, 0.60, 0.75), "type": "weapon", "weapon": "primary", "reserve": 60},
+	{"id": "wep_sniper", "name": "Marksman Rifle", "value": 1200, "color": Color(0.60, 0.50, 0.70), "type": "weapon", "weapon": "sniper", "reserve": 8},
+	{"id": "wep_grenade", "name": "Frag Grenades", "value": 180, "color": Color(0.35, 0.45, 0.30), "type": "weapon", "weapon": "utility", "reserve": 2},
 ]
 
 static func random_item() -> Dictionary:
