@@ -24,7 +24,7 @@ var _loot_by_index: Dictionary = {}
 var _weapon: WeaponManager
 var _player_health: Health
 var _hud: HUD
-var _extraction: ExtractionZone
+var _extractions: Array[ExtractionZone] = []
 var _map_data: Dictionary = {}
 var _inventory: Inventory
 
@@ -127,14 +127,29 @@ func _release_mouse() -> void:
 		_player.set("mouse_captured", false)
 
 func _spawn_extraction() -> void:
-	var position: Vector3 = _map_data.get("extraction", Vector3(0, 0, 0))
-	_extraction = ExtractionZoneScript.new() as ExtractionZone
-	_extraction.position = position
-	add_child(_extraction)
-	_extraction.player_entered.connect(_on_extraction_entered)
-	_extraction.player_exited.connect(_on_extraction_exited)
-	_extraction.channel_progress.connect(_on_channel_progress)
-	_extraction.extracted.connect(_win)
+	var positions: Array = _map_data.get("extractions", [])
+	if positions.is_empty():
+		positions = [_map_data.get("extraction", Vector3(0, 0, 0))]
+	for position in positions:
+		var zone := ExtractionZoneScript.new() as ExtractionZone
+		zone.position = position
+		add_child(zone)
+		zone.player_entered.connect(_on_extraction_entered)
+		zone.player_exited.connect(_on_extraction_exited)
+		zone.channel_progress.connect(_on_channel_progress)
+		zone.extracted.connect(_win)
+		_extractions.append(zone)
+
+func _set_extractions_ready(value: bool) -> void:
+	for zone in _extractions:
+		zone.set_ready_state(value)
+
+func _cancel_extractions() -> bool:
+	var any := false
+	for zone in _extractions:
+		if zone.cancel():
+			any = true
+	return any
 
 func _spawn_loot() -> void:
 	var index := 0
@@ -217,12 +232,23 @@ func _update_footsteps(delta: float) -> void:
 		_step_timer = 0.38
 
 func _update_compass() -> void:
-	if _extraction == null or _hud == null:
+	if _extractions.is_empty() or _hud == null:
 		return
 	var camera := get_viewport().get_camera_3d()
 	if camera == null:
 		return
-	var to_extraction := _extraction.global_position - camera.global_position
+	var best: ExtractionZone = null
+	var best_score := INF
+	for zone in _extractions:
+		var d := zone.global_position.distance_to(camera.global_position)
+		# Prefer a ready zone, otherwise the nearest one.
+		var score := d if zone.is_ready else d + 100000.0
+		if score < best_score:
+			best_score = score
+			best = zone
+	if best == null:
+		return
+	var to_extraction := best.global_position - camera.global_position
 	to_extraction.y = 0.0
 	var forward := -camera.global_transform.basis.z
 	forward.y = 0.0
@@ -343,7 +369,7 @@ func _on_player_damaged(_amount: float, current: float, maximum: float) -> void:
 		if _hud != null:
 			_hud.set_charge(0.0)
 			_hud.set_hint("Healing interrupted!")
-	if _extraction != null and _extraction.cancel() and _hud != null:
+	if _cancel_extractions() and _hud != null:
 		_hud.set_hint("Extraction interrupted!")
 
 func _on_player_died() -> void:
@@ -398,8 +424,8 @@ func _on_loot_collected(index: int) -> void:
 	_loot_collected += 1
 	_add_item(ItemDefs.random_item())
 	_update_objective()
-	if _loot_collected >= _loot_total and _extraction != null:
-		_extraction.set_ready_state(true)
+	if _loot_collected >= _loot_total:
+		_set_extractions_ready(true)
 		_hud.set_hint("Intel secured. Reach the extraction marker!")
 	if _coop != null:
 		_coop.broadcast_loot_taken(index)
@@ -516,5 +542,5 @@ func on_loot_taken_remote(index: int) -> void:
 func on_intel_remote(count: int) -> void:
 	_loot_collected = count
 	_update_objective()
-	if _extraction != null and _loot_collected >= _loot_total:
-		_extraction.set_ready_state(true)
+	if _loot_collected >= _loot_total:
+		_set_extractions_ready(true)

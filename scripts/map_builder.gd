@@ -44,6 +44,20 @@ const BLD_WATCHTOWER := preload("res://assets/draft_pack/bld_watchtower.glb")
 const TILE_FLOOR := preload("res://assets/draft_pack/tile_floor_concrete.glb")
 const TILE_DIRT := preload("res://assets/draft_pack/tile_dirt.glb")
 
+# Placeholder CC0 props (see assets/placeholder) for the large Town POIs.
+const PH_MARKET := preload("res://assets/placeholder/props/MarketStand_1.glb")
+const PH_GAZEBO := preload("res://assets/placeholder/props/Gazebo.glb")
+const PH_BELL := preload("res://assets/placeholder/props/Bell_Tower.glb")
+const PH_PROPANE := preload("res://assets/placeholder/props/PropaneTank.glb")
+const PH_GASCAN := preload("res://assets/placeholder/consumables/GasCan.glb")
+const PH_BARREL := preload("res://assets/placeholder/props/Barrel.glb")
+const PH_CRATE := preload("res://assets/placeholder/props/Crate.glb")
+const PH_SHELF := preload("res://assets/placeholder/props/Shelf_Large.glb")
+const PH_WELL := preload("res://assets/placeholder/props/Well.glb")
+const PH_HAY := preload("res://assets/placeholder/props/Hay.glb")
+const PH_TENT := preload("res://assets/placeholder/props/Tent.glb")
+const PH_BONFIRE := preload("res://assets/placeholder/props/Bonfire_Fire.glb")
+
 const FLOOR_COLOR := Color(0.60, 0.61, 0.64)
 const WALL_COLOR := Color(0.42, 0.44, 0.49)
 const GRASS_COLOR := Color(0.33, 0.46, 0.26)
@@ -86,118 +100,189 @@ static func build(id: String, parent: Node3D) -> Dictionary:
 # --- Town (outdoor city street) ---------------------------------------------
 
 static func _build_town(arena: Node3D) -> void:
-	_ground(arena, 120.0)
+	_ground(arena, 300.0)
 
+	# Main cross avenues (6 m road tiles, ±120 m).
 	var road_step := 6.0
-	var span := 6
-	# Cross of streets: one along Z, one along X, junction at the centre.
-	_road(arena, ROAD_JUNCTION, Vector3(0, -0.24, 0), 0.0)
-	for i in range(-span, span + 1):
-		if i == 0:
-			continue
-		var offset := i * road_step
-		_road(arena, ROAD_STRAIGHT, Vector3(offset, -0.24, 0), 90.0)
+	for i in range(-20, 21):
+		var offset := float(i) * road_step
 		_road(arena, ROAD_STRAIGHT, Vector3(0, -0.24, offset), 0.0)
+		_road(arena, ROAD_STRAIGHT, Vector3(offset, -0.24, 0), 90.0)
+	_road(arena, ROAD_JUNCTION, Vector3(0, -0.24, 0), 0.0)
 
-	# Houses along both streets.
-	var lane := 13.0
-	var slots := [-33.0, -21.0, -9.0, 9.0, 21.0, 33.0]
+	# Buildings lining both avenues.
+	var lane := 14.0
 	var building_index := 0
-	for slot in slots:
+	var slot := -108.0
+	while slot <= 108.0:
 		_building(arena, Vector3(slot, 0, -lane), 180.0, building_index)
 		_building(arena, Vector3(slot, 0, lane), 0.0, building_index + 1)
 		_building(arena, Vector3(-lane, 0, slot), 90.0, building_index + 2)
 		_building(arena, Vector3(lane, 0, slot), -90.0, building_index + 3)
-		building_index += 5
+		building_index += 4
+		slot += 24.0
 
 	# Parked cars along the curbs.
 	var cars := [CAR_SEDAN, CAR_HATCHBACK, CAR_TAXI, CAR_POLICE, CAR_STATION]
 	var car_spots := [
-		Vector3(-18, 0, -3.2), Vector3(6, 0, -3.2), Vector3(24, 0, 3.2),
-		Vector3(-6, 0, 3.2), Vector3(3.2, 0, -20), Vector3(-3.2, 0, -8),
-		Vector3(3.2, 0, 14), Vector3(-3.2, 0, 26),
+		Vector3(-30, 0, -3.4), Vector3(18, 0, -3.4), Vector3(66, 0, 3.4),
+		Vector3(-54, 0, 3.4), Vector3(3.4, 0, -30), Vector3(-3.4, 0, 24),
+		Vector3(3.4, 0, 60), Vector3(-3.4, 0, -66), Vector3(90, 0, -3.4), Vector3(-90, 0, 3.4),
 	]
 	for i in car_spots.size():
-		var on_side_street := absf(car_spots[i].x) < 5.0
+		var on_side_street := absf(car_spots[i].x) < 6.0
 		var rotation := 0.0 if on_side_street else 90.0
 		_prop(arena, cars[i % cars.size()], car_spots[i], rotation, 4.2)
 
-	# Street furniture: lights, traffic lights, hydrants, benches, trash, dumpsters.
-	for slot in slots:
-		_prop(arena, STREETLIGHT, Vector3(slot + 4.5, 0, -4.6), 0.0, 5.0)
-		_prop(arena, STREETLIGHT, Vector3(slot - 4.5, 0, 4.6), 180.0, 5.0)
-		_prop(arena, STREETLIGHT, Vector3(4.6, 0, slot + 4.5), 90.0, 5.0)
-		_prop(arena, STREETLIGHT, Vector3(-4.6, 0, slot - 4.5), -90.0, 5.0)
-	_prop(arena, TRAFFIC_A, Vector3(5.5, 0, -5.5), 0.0, 4.0)
-	_prop(arena, TRAFFIC_A, Vector3(-5.5, 0, 5.5), 180.0, 4.0)
+	# Street furniture along the avenues.
+	var light_at := -108.0
+	while light_at <= 108.0:
+		_prop(arena, STREETLIGHT, Vector3(light_at + 4.5, 0, -4.8), 0.0, 5.0)
+		_prop(arena, STREETLIGHT, Vector3(light_at - 4.5, 0, 4.8), 180.0, 5.0)
+		light_at += 24.0
+	_prop(arena, TRAFFIC_A, Vector3(5.6, 0, -5.6), 0.0, 4.0)
+	_prop(arena, TRAFFIC_A, Vector3(-5.6, 0, 5.6), 180.0, 4.0)
 	_prop(arena, FIREHYDRANT, Vector3(9.5, 0, 9.5), 0.0, 1.1)
-	_prop(arena, FIREHYDRANT, Vector3(-21.5, 0, -9.5), 0.0, 1.1)
+	_prop(arena, FIREHYDRANT, Vector3(-33.5, 0, -9.5), 0.0, 1.1)
 	_prop(arena, BENCH, Vector3(-9.5, 0, 9.5), 0.0, 2.0)
-	_prop(arena, BENCH, Vector3(21.5, 0, -9.5), 180.0, 2.0)
-	_prop(arena, TRASH, Vector3(12.5, 0, 9.5), 0.0, 1.2)
-	_prop(arena, TRASH, Vector3(-12.5, 0, -9.5), 0.0, 1.2)
-	_prop(arena, DUMPSTER, Vector3(-16.5, 0, 16.5), 45.0, 2.4)
-	_prop(arena, DUMPSTER, Vector3(16.5, 0, -16.5), 200.0, 2.4)
-	_prop(arena, WATERTWER, Vector3(34, 0, 34), 0.0, 8.0)
+	_prop(arena, BENCH, Vector3(33.5, 0, -9.5), 180.0, 2.0)
+	_prop(arena, DUMPSTER, Vector3(-21.5, 0, 21.5), 45.0, 2.4)
+	_prop(arena, DUMPSTER, Vector3(21.5, 0, -21.5), 200.0, 2.4)
+	_prop(arena, WATERTWER, Vector3(90, 0, 90), 0.0, 8.0)
 
-	# Draft-pack landmarks: watchtower by the extraction point, a ruined block
-	# and a house filling out two corners.
-	_prop(arena, BLD_WATCHTOWER, Vector3(6.5, 0, -34), 0.0, 7.0)
-	_prop(arena, BLD_RUINED, Vector3(-36, 0, -36), 180.0, 6.5)
-	_prop(arena, BLD_HOUSE, Vector3(36, 0, -36), 135.0, 6.0)
+	# Points of interest.
+	_poi_market(arena, Vector3(64, 0, 64))
+	_poi_church(arena, Vector3(-64, 0, -64))
+	_poi_gas(arena, Vector3(64, 0, -64))
+	_poi_camp(arena, Vector3(-64, 0, 64))
+	_poi_yard(arena, Vector3(0, 0, 84))
+
+	# Landmarks + cover.
+	_prop(arena, BLD_WATCHTOWER, Vector3(0, 0, -108), 0.0, 7.0)
+	_prop(arena, BLD_WATCHTOWER, Vector3(0, 0, 108), 180.0, 7.0)
+	_prop(arena, BLD_RUINED, Vector3(-44, 0, -96), 20.0, 6.5)
+	_prop(arena, BLD_RUINED, Vector3(96, 0, 44), 200.0, 6.5)
+	_prop(arena, BLD_RUINED, Vector3(-96, 0, 44), 300.0, 6.0)
+	_prop(arena, BLD_HOUSE, Vector3(44, 0, -44), 135.0, 6.0)
+	_prop(arena, BLD_HOUSE, Vector3(-96, 0, 96), 45.0, 6.0)
+	_prop(arena, BLD_HOUSE, Vector3(96, 0, -96), 225.0, 6.0)
 
 	# Greenery.
-	var trees := [
-		Vector3(-16, 0, -17), Vector3(16, 0, -17), Vector3(-16, 0, 17), Vector3(16, 0, 17),
-		Vector3(-28, 0, -17), Vector3(28, 0, -17), Vector3(-28, 0, 17), Vector3(28, 0, 17),
-		Vector3(-17, 0, -28), Vector3(17, 0, -28), Vector3(-17, 0, 28), Vector3(17, 0, 28),
-		Vector3(-40, 0, -8), Vector3(40, 0, 8), Vector3(-8, 0, 40), Vector3(8, 0, -40),
-	]
-	for i in trees.size():
-		_tree(arena, trees[i], 1.0 + float(i % 3) * 0.18)
-
-	var bushes := [
-		Vector3(-7, 0, -8), Vector3(7, 0, 8), Vector3(-19, 0, 6), Vector3(19, 0, -6),
-		Vector3(6, 0, -19), Vector3(-6, 0, 19), Vector3(-31, 0, 8), Vector3(31, 0, -8),
-		Vector3(8, 0, 31), Vector3(-8, 0, -31), Vector3(13, 0, 6), Vector3(-13, 0, -6),
-	]
-	for i in bushes.size():
-		_prop(arena, BUSH, bushes[i], float((i * 53) % 360), 1.6)
-
-	for i in 70:
+	for i in 44:
 		var angle := float(i) * 2.399963
-		var radius := 6.0 + sqrt(float(i)) * 4.6
-		_grass(arena, Vector3(sin(angle) * radius, 0.0, cos(angle) * radius))
+		var radius := 16.0 + sqrt(float(i)) * 14.0
+		var p := Vector3(sin(angle) * radius, 0.0, cos(angle) * radius)
+		if absf(p.x) < 7.0 or absf(p.z) < 7.0:
+			continue
+		_tree(arena, p, 1.0 + float(i % 3) * 0.18)
 
-	# Bounds so the player can't wander off the block.
-	_invisible_wall(arena, Vector3(0, 4, -48), Vector3(100, 8, 1))
-	_invisible_wall(arena, Vector3(0, 4, 48), Vector3(100, 8, 1))
-	_invisible_wall(arena, Vector3(-48, 4, 0), Vector3(1, 8, 100))
-	_invisible_wall(arena, Vector3(48, 4, 0), Vector3(1, 8, 100))
+	for i in 12:
+		var a := float(i) * 2.399963
+		var r := 30.0 + sqrt(float(i)) * 16.0
+		_prop(arena, BUSH, Vector3(sin(a) * r, 0.0, cos(a) * r), float((i * 53) % 360), 1.6)
+
+	for i in 160:
+		var angle := float(i) * 2.399963
+		var radius := 8.0 + sqrt(float(i)) * 9.0
+		var p := Vector3(sin(angle) * radius, 0.0, cos(angle) * radius)
+		if absf(p.x) < 5.0 or absf(p.z) < 5.0:
+			continue
+		_grass(arena, p)
+
+	# Perimeter.
+	_invisible_wall(arena, Vector3(0, 4, -126), Vector3(252, 8, 1))
+	_invisible_wall(arena, Vector3(0, 4, 126), Vector3(252, 8, 1))
+	_invisible_wall(arena, Vector3(-126, 4, 0), Vector3(1, 8, 252))
+	_invisible_wall(arena, Vector3(126, 4, 0), Vector3(1, 8, 252))
+
+# --- Town points of interest -------------------------------------------------
+
+static func _poi_market(arena: Node3D, c: Vector3) -> void:
+	_prop(arena, PH_GAZEBO, c, 0.0, 6.0)
+	for i in 4:
+		var a := float(i) * PI * 0.5
+		_prop(arena, PH_MARKET, c + Vector3(sin(a), 0, cos(a)) * 7.5, rad_to_deg(a) + 180.0, 3.2)
+	_prop(arena, PH_CRATE, c + Vector3(-4, 0, 5), 20.0, 1.4)
+	_prop(arena, PH_BARREL, c + Vector3(5, 0, -4), 0.0, 1.3)
+	_prop(arena, PH_BARREL, c + Vector3(6.2, 0, -3.2), 0.0, 1.3)
+
+static func _poi_church(arena: Node3D, c: Vector3) -> void:
+	_prop(arena, PH_BELL, c, 0.0, 13.0)
+	_prop(arena, BLD_HOUSE, c + Vector3(11, 0, 6), 180.0, 6.0)
+	_prop(arena, BLD_HOUSE, c + Vector3(-11, 0, 6), 180.0, 6.0)
+	_prop(arena, PH_WELL, c + Vector3(0, 0, 9), 0.0, 2.4)
+
+static func _poi_gas(arena: Node3D, c: Vector3) -> void:
+	_box(arena, c + Vector3(0, 3.4, 0), Vector3(15, 0.6, 11), 0.0, WALL_COLOR)
+	_box(arena, c + Vector3(-3, 1.0, 0), Vector3(1.2, 2.0, 1.2), 0.0, WALL_COLOR)
+	_box(arena, c + Vector3(3, 1.0, 0), Vector3(1.2, 2.0, 1.2), 0.0, WALL_COLOR)
+	_prop(arena, PH_PROPANE, c + Vector3(8, 0, 6), 0.0, 1.6)
+	_prop(arena, PH_PROPANE, c + Vector3(9.4, 0, 6.6), 0.0, 1.6)
+	_prop(arena, PH_GASCAN, c + Vector3(-7, 0, 6), 0.0, 0.7)
+	_prop(arena, PH_BARREL, c + Vector3(7, 0, -6), 0.0, 1.3)
+
+static func _poi_camp(arena: Node3D, c: Vector3) -> void:
+	_prop(arena, PH_TENT, c + Vector3(-5, 0, -2), 0.0, 3.4)
+	_prop(arena, PH_TENT, c + Vector3(5, 0, 2), 180.0, 3.4)
+	_prop(arena, PH_BONFIRE, c, 0.0, 1.6)
+	_prop(arena, PH_CRATE, c + Vector3(-2, 0, 4), 10.0, 1.4)
+	_prop(arena, PH_HAY, c + Vector3(8, 0, -5), 30.0, 2.0)
+
+static func _poi_yard(arena: Node3D, c: Vector3) -> void:
+	for i in 3:
+		_prop(arena, PH_SHELF, c + Vector3(-6.0 + float(i) * 6.0, 0, 0), 0.0, 3.0)
+	_prop(arena, PH_CRATE, c + Vector3(0, 0, 6), 0.0, 1.4)
+	_prop(arena, PH_CRATE, c + Vector3(1.6, 0, 6.6), 25.0, 1.4)
+	_prop(arena, PH_BARREL, c + Vector3(-8, 0, -6), 0.0, 1.3)
+	_prop(arena, PH_BARREL, c + Vector3(-6.6, 0, -6.6), 0.0, 1.3)
 
 static func _town_placements() -> Dictionary:
+	# Seeded so loot/enemy indices match on every peer (co-op sync relies on it).
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 20261009
+
+	var loot: Array = []
+	for i in 44:
+		var x := rng.randf_range(-116.0, 116.0)
+		var z := rng.randf_range(-116.0, 116.0)
+		if absf(x) < 9.0:
+			x += 18.0
+		if absf(z) < 9.0:
+			z += 18.0
+		loot.append(Vector3(x, 0, z))
+
+	var containers: Array = []
+	for i in 26:
+		var x := rng.randf_range(-116.0, 116.0)
+		var z := rng.randf_range(-116.0, 116.0)
+		if absf(x) < 9.0:
+			x -= 18.0
+		if absf(z) < 9.0:
+			z -= 18.0
+		containers.append(Vector3(x, 0, z))
+
+	var enemies: Array = []
+	for i in 22:
+		var x := rng.randf_range(-110.0, 110.0)
+		var z := rng.randf_range(-110.0, 110.0)
+		if absf(x) < 8.0:
+			x += 16.0
+		if absf(z) < 8.0:
+			z += 16.0
+		enemies.append(Vector3(x, 0.2, z))
+
+	var beasts: Array = []
+	for i in 14:
+		beasts.append(Vector3(rng.randf_range(-112.0, 112.0), 0.2, rng.randf_range(-112.0, 112.0)))
+
 	return {
 		"title": "Town",
-		"player_spawn": Vector3(0, 0.2, 26),
-		"extraction": Vector3(0, 0, -30),
-		"loot": [
-			Vector3(-9, 0, 6), Vector3(9, 0, -6), Vector3(-21, 0, -6), Vector3(21, 0, 6),
-			Vector3(6, 0, 21), Vector3(-6, 0, -21), Vector3(-33, 0, 6), Vector3(33, 0, -6),
-			Vector3(6, 0, -33), Vector3(-6, 0, 33), Vector3(16, 0, 16), Vector3(-16, 0, -16),
-		],
-		"containers": [
-			Vector3(-9, 0, -9), Vector3(9, 0, 9), Vector3(-21, 0, 9), Vector3(21, 0, -9),
-			Vector3(9, 0, -21), Vector3(-9, 0, 21), Vector3(33, 0, -9), Vector3(-33, 0, 9),
-		],
-		"enemies": [
-			Vector3(0, 0.2, -12), Vector3(9, 0.2, -2), Vector3(-9, 0.2, 2),
-			Vector3(2, 0.2, 12), Vector3(-2, 0.2, -20), Vector3(20, 0.2, 3),
-			Vector3(-20, 0.2, -3), Vector3(3, 0.2, -36),
-		],
-		"beasts": [
-			Vector3(12, 0.2, -40), Vector3(-12, 0.2, -40), Vector3(40, 0.2, -12),
-			Vector3(-40, 0.2, 12), Vector3(28, 0.2, 40),
-		],
+		"player_spawn": Vector3(0, 0.2, 104),
+		"extractions": [Vector3(0, 0, -112), Vector3(0, 0, 112)],
+		"loot": loot,
+		"containers": containers,
+		"enemies": enemies,
+		"beasts": beasts,
 	}
 
 static func _ground(arena: Node3D, size: float) -> void:

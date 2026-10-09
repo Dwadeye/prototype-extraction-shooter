@@ -30,7 +30,7 @@ func _run() -> void:
 	if "top" in args:
 		var cam := Camera3D.new()
 		scene.add_child(cam)
-		cam.look_at_from_position(Vector3(0.0, 60.0, 0.01), Vector3.ZERO, Vector3(0.0, 0.0, -1.0))
+		cam.look_at_from_position(Vector3(0.0, 260.0, 0.01), Vector3.ZERO, Vector3(0.0, 0.0, -1.0))
 		cam.current = true
 
 	var slot_names := ["secondary", "melee", "utility", "sniper"]
