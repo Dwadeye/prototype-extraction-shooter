@@ -109,6 +109,8 @@ var _current_clip: String = ""
 var _current_action: String = "idle"
 var _action_lock: float = 0.0
 var _puppet_dead: bool = false
+var _sees_player: bool = false
+var _sense_timer: float = 0.0
 
 func _ready() -> void:
 	add_to_group("enemies")
@@ -353,7 +355,17 @@ func _physics_process(delta: float) -> void:
 
 	_acquire_target()
 
-	var sees_player := _can_see_player()
+	# Throttle line-of-sight checks by distance (LOD): close enemies sense every
+	# frame-ish, distant ones far less often.
+	_sense_timer -= delta
+	var sees_player := _sees_player
+	if _sense_timer <= 0.0:
+		var distance := 999.0
+		if _player != null and is_instance_valid(_player):
+			distance = global_position.distance_to(_player.global_position)
+		_sense_timer = 0.1 if distance < 30.0 else (0.3 if distance < 70.0 else 0.6)
+		sees_player = _can_see_player()
+		_sees_player = sees_player
 	if sees_player:
 		_last_seen = _player.global_position
 		_lost_timer = lose_sight_time

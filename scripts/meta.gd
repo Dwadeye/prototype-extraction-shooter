@@ -34,15 +34,28 @@ func load_game() -> void:
 	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
 	if file == null:
 		return
-	var data = JSON.parse_string(file.get_as_text())
-	if data is Dictionary:
-		currency = int(data.get("currency", 0))
-		extractions = int(data.get("extractions", 0))
-		deaths = int(data.get("deaths", 0))
-		best_extract = int(data.get("best_extract", 0))
-		stash = data.get("stash", [])
-		if data.get("settings") is Dictionary:
-			settings.merge(data["settings"], true)
+	var text := file.get_as_text()
+	var data = JSON.parse_string(text)
+	if not (data is Dictionary):
+		# Corrupt save: keep a backup and start fresh instead of crashing.
+		var backup := FileAccess.open(SAVE_PATH + ".corrupt", FileAccess.WRITE)
+		if backup != null:
+			backup.store_string(text)
+		push_warning("Save file corrupt; backed up to save.json.corrupt and reset.")
+		return
+	currency = int(data.get("currency", 0))
+	extractions = int(data.get("extractions", 0))
+	deaths = int(data.get("deaths", 0))
+	best_extract = int(data.get("best_extract", 0))
+	stash = data.get("stash", [])
+	if data.get("settings") is Dictionary:
+		settings.merge(data["settings"], true)
+	_migrate(int(data.get("save_version", 1)))
+
+func _migrate(from_version: int) -> void:
+	# v1 predates the version field and settings; defaults already applied above.
+	if from_version < SAVE_VERSION:
+		save_game()
 
 func save_game() -> void:
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)

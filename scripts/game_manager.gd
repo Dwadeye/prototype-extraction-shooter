@@ -20,6 +20,8 @@ var _is_net: bool = false
 var _is_host: bool = true
 var _coop: CoopNet
 var _pause_menu: PauseMenu
+var _stats_layer: CanvasLayer
+var _stats_label: Label
 var _loot_by_index: Dictionary = {}
 var _weapon: WeaponManager
 var _player_health: Health
@@ -71,6 +73,7 @@ func _ready() -> void:
 	_pause_menu.setup(_player)
 	_pause_menu.quit_to_menu.connect(_return_to_menu)
 
+	_build_stats()
 	_capture_mouse()
 
 	if _player_health != null:
@@ -195,6 +198,7 @@ func _spawn_enemies() -> void:
 			beast.health.died.connect(_on_enemy_died.bind(beast))
 
 func _process(delta: float) -> void:
+	_update_stats()
 	if _game_over:
 		return
 	if _player_health != null and _hud != null:
@@ -265,6 +269,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		var code := (event as InputEventKey).physical_keycode
 		if code == KEY_ESCAPE:
 			_toggle_pause()
+			return
+		if code == KEY_F3:
+			_stats_label.visible = not _stats_label.visible
 			return
 		if code == KEY_M:
 			switch_map()
@@ -499,6 +506,30 @@ func _toggle_pause() -> void:
 		_pause_menu.close()
 	else:
 		_pause_menu.open()
+
+func _build_stats() -> void:
+	_stats_layer = CanvasLayer.new()
+	_stats_layer.layer = 40
+	add_child(_stats_layer)
+	_stats_label = Label.new()
+	_stats_label.position = Vector2(12, 64)
+	_stats_label.add_theme_font_size_override("font_size", 13)
+	_stats_label.add_theme_color_override("font_color", Color(0.85, 0.95, 0.85))
+	_stats_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
+	_stats_label.add_theme_constant_override("shadow_offset_x", 1)
+	_stats_label.add_theme_constant_override("shadow_offset_y", 1)
+	_stats_layer.add_child(_stats_label)
+	_stats_label.visible = false
+
+func _update_stats() -> void:
+	if _stats_label == null or not _stats_label.visible:
+		return
+	_stats_label.text = "FPS %d   enemies %d   draws %d   nodes %d" % [
+		Engine.get_frames_per_second(),
+		get_tree().get_nodes_in_group("enemies").size(),
+		int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
+		int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)),
+	]
 
 func _on_host_lost() -> void:
 	if _game_over:
