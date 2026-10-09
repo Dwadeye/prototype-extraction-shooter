@@ -14,12 +14,14 @@ const HUDScript := preload("res://scripts/hud.gd")
 const LootContainerScript := preload("res://scripts/loot_container.gd")
 const CoopNetScript := preload("res://scripts/coop_net.gd")
 const PauseMenuScript := preload("res://scripts/pause_menu.gd")
+const InventoryPanelScript := preload("res://scripts/inventory_panel.gd")
 
 var _player: Node3D
 var _is_net: bool = false
 var _is_host: bool = true
 var _coop: CoopNet
 var _pause_menu: PauseMenu
+var _inventory_panel: InventoryPanel
 var _stats_layer: CanvasLayer
 var _stats_label: Label
 var _loot_by_index: Dictionary = {}
@@ -72,6 +74,12 @@ func _ready() -> void:
 	add_child(_pause_menu)
 	_pause_menu.setup(_player)
 	_pause_menu.quit_to_menu.connect(_return_to_menu)
+
+	_inventory_panel = InventoryPanelScript.new() as InventoryPanel
+	add_child(_inventory_panel)
+	_inventory_panel.setup(_inventory)
+	_inventory_panel.changed.connect(_apply_equipment)
+	_apply_equipment()
 
 	_build_stats()
 	_capture_mouse()
@@ -280,7 +288,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_try_heal()
 			return
 		if code == KEY_TAB or code == KEY_I:
-			_hud.toggle_inventory(_inventory_text())
+			_toggle_inventory()
+			return
 
 func switch_map() -> void:
 	if _is_net:
@@ -502,10 +511,39 @@ func _return_to_menu() -> void:
 func _toggle_pause() -> void:
 	if _pause_menu == null or _game_over:
 		return
+	if _inventory_panel != null and _inventory_panel.is_open():
+		_inventory_panel.close()
+		return
 	if _pause_menu.is_open():
 		_pause_menu.close()
 	else:
 		_pause_menu.open()
+
+func _toggle_inventory() -> void:
+	if _inventory_panel == null or _game_over:
+		return
+	if _inventory_panel.is_open():
+		_inventory_panel.close()
+		return
+	if _pause_menu != null and _pause_menu.is_open():
+		_pause_menu.close()
+	_inventory_panel.open()
+
+## Push worn gear onto the player: armour absorbs damage; rig/backpack add slots.
+func _apply_equipment() -> void:
+	if _player_health == null:
+		return
+	var armor_points := 0.0
+	var armor_fraction := 0.0
+	var armor: Dictionary = _inventory.equipment.get("armor", {})
+	if not armor.is_empty():
+		armor_points = float(armor.get("armor_points", 0.0))
+		armor_fraction = float(armor.get("armor", 0.0))
+	var helmet: Dictionary = _inventory.equipment.get("helmet", {})
+	if not helmet.is_empty():
+		armor_fraction = maxf(armor_fraction, float(helmet.get("armor", 0.0)))
+	_player_health.armor_points = armor_points
+	_player_health.armor_fraction = armor_fraction
 
 func _build_stats() -> void:
 	_stats_layer = CanvasLayer.new()

@@ -45,15 +45,38 @@ extends CharacterBody3D
 @export var input_sprint : String = "sprint"
 ## Name of Input Action to toggle freefly mode.
 @export var input_freefly : String = "freefly"
+## Name of Input Action to crouch.
+@export var input_crouch : String = "crouch"
+## Name of Input Actions to lean (peek).
+@export var input_lean_left : String = "lean_left"
+@export var input_lean_right : String = "lean_right"
+
+@export_group("Stance")
+## Walk speed while crouched.
+@export var crouch_speed : float = 3.4
+## Standing / crouched eye heights (m).
+@export var stand_height : float = 1.7
+@export var crouch_height : float = 1.05
+## How far (m) and how far (deg) we lean, and how fast.
+@export var lean_offset : float = 0.5
+@export var lean_roll_deg : float = 12.0
+@export var lean_speed : float = 7.0
 
 var mouse_captured : bool = false
 var look_rotation : Vector2
 var move_speed : float = 0.0
 var freeflying : bool = false
+## Stance state, read by the weapon manager (crouching/leaning tighten spread).
+var crouching : bool = false
+var lean : float = 0.0
+
+const STAND_CAPSULE := 1.8
+const CROUCH_CAPSULE := 1.2
 
 ## IMPORTANT REFERENCES
 @onready var head: Node3D = $Head
 @onready var collider: CollisionShape3D = $Collider
+@onready var camera: Camera3D = $Head/Camera3D
 
 func _ready() -> void:
 	check_input_mappings()
@@ -99,9 +122,13 @@ func _physics_process(delta: float) -> void:
 		if Input.is_action_just_pressed(input_jump) and is_on_floor():
 			velocity.y = jump_velocity
 
-	# Modify speed based on sprinting
-	if can_sprint and Input.is_action_pressed(input_sprint):
-			move_speed = sprint_speed
+	_update_stance(delta)
+
+	# Modify speed based on stance
+	if crouching:
+		move_speed = crouch_speed
+	elif can_sprint and Input.is_action_pressed(input_sprint):
+		move_speed = sprint_speed
 	else:
 		move_speed = base_speed
 
@@ -136,6 +163,42 @@ func rotate_look(rot_input : Vector2):
 	head.transform.basis = Basis()
 	head.rotate_x(look_rotation.x)
 
+
+func _update_stance(delta: float) -> void:
+	# Crouch / stand (stand only if there's headroom).
+	var wants_crouch := InputMap.has_action(input_crouch) and Input.is_action_pressed(input_crouch)
+	if wants_crouch:
+		crouching = true
+	elif crouching and _can_stand():
+		crouching = false
+
+	var target_head_y := crouch_height if crouching else stand_height
+	head.position.y = lerpf(head.position.y, target_head_y, clampf(delta * 10.0, 0.0, 1.0))
+
+	var cap := collider.shape as CapsuleShape3D
+	if cap != null:
+		var target_cap := CROUCH_CAPSULE if crouching else STAND_CAPSULE
+		cap.height = lerpf(cap.height, target_cap, clampf(delta * 10.0, 0.0, 1.0))
+		collider.position.y = cap.height * 0.5
+
+	# Lean / peek: shift the head sideways and roll the camera.
+	var lean_input := 0.0
+	if InputMap.has_action(input_lean_left) and Input.is_action_pressed(input_lean_left):
+		lean_input -= 1.0
+	if InputMap.has_action(input_lean_right) and Input.is_action_pressed(input_lean_right):
+		lean_input += 1.0
+	lean = lerpf(lean, lean_input, clampf(delta * lean_speed, 0.0, 1.0))
+	head.position.x = lean * lean_offset
+	if camera != null:
+		camera.rotation.z = -lean * deg_to_rad(lean_roll_deg)
+
+func _can_stand() -> bool:
+	var from := head.global_position
+	var to := from + Vector3.UP * (stand_height - crouch_height + 0.15)
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	query.exclude = [get_rid()]
+	query.collide_with_areas = false
+	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 func enable_freefly():
 	collider.disabled = true

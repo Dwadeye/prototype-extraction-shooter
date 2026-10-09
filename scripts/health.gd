@@ -11,6 +11,9 @@ signal died
 
 var current_health: float = 0.0
 var is_dead: bool = false
+## Worn armour: absorbs `armor_fraction` of incoming damage until depleted.
+var armor_points: float = 0.0
+var armor_fraction: float = 0.0
 
 func _ready() -> void:
 	current_health = max_health
@@ -18,7 +21,12 @@ func _ready() -> void:
 func take_damage(amount: float) -> void:
 	if is_dead or amount <= 0.0:
 		return
-	current_health = clampf(current_health - amount, 0.0, max_health)
+	var final := amount
+	if armor_points > 0.0 and armor_fraction > 0.0:
+		var absorbed := minf(amount * armor_fraction, armor_points)
+		armor_points -= absorbed
+		final = amount - absorbed
+	current_health = clampf(current_health - final, 0.0, max_health)
 	damaged.emit(amount, current_health, max_health)
 	if current_health <= 0.0:
 		is_dead = true

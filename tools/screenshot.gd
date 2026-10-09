@@ -44,6 +44,12 @@ func _run() -> void:
 	if "scope" in args:
 		Input.action_press("ADS")
 
+	if "inventory" in args:
+		# Seed a few items and open the panel for the screenshot.
+		for id in ["armor_1", "helmet_2", "rig_1", "backpack_1", "gold", "cpu", "watch", "medkit"]:
+			scene.call("_add_item", ItemDefs.by_id(id))
+		scene.call("_toggle_inventory")
+
 	for i in 90:
 		await process_frame
 	var image: Image = root.get_texture().get_image()
