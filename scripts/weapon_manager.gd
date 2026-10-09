@@ -191,12 +191,14 @@ func _fire_gun(def: Dictionary) -> void:
 	Sfx.play(String(def.get("sfx", "shot_ar")), 0.0, randf_range(0.97, 1.03))
 	if _net_is_client():
 		_report_fire(def)
+		# Local tracer for immediate feedback; the host applies real damage.
+		_spawn_bullet(def, true)
 	else:
 		for i in int(def.get("pellets", 1)):
 			_spawn_bullet(def)
 	_kick(def)
 
-func _spawn_bullet(def: Dictionary) -> void:
+func _spawn_bullet(def: Dictionary, visual_only: bool = false) -> void:
 	var camera := get_viewport().get_camera_3d()
 	if camera == null:
 		return
@@ -216,6 +218,7 @@ func _spawn_bullet(def: Dictionary) -> void:
 	var aim_query := PhysicsRayQueryParameters3D.create(camera.global_position, camera.global_position + direction * max_range)
 	aim_query.exclude = exclude
 	aim_query.collide_with_areas = false
+	aim_query.hit_from_inside = true
 	var aim_point := camera.global_position + direction * max_range
 	var aim_result := space.intersect_ray(aim_query)
 	if not aim_result.is_empty():
@@ -229,7 +232,7 @@ func _spawn_bullet(def: Dictionary) -> void:
 	var projectile: Projectile = ProjectileScript.new()
 	projectile.velocity = travel.normalized() * float(def.get("bullet_speed", 80.0))
 	projectile.gravity = float(def.get("gravity", 0.0))
-	projectile.damage = float(def.get("damage", 25.0))
+	projectile.damage = 0.0 if visual_only else float(def.get("damage", 25.0))
 	projectile.hits_enemies = true
 	projectile.hits_player = false
 	if _player != null:

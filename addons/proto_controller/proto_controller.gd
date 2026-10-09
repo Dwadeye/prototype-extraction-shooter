@@ -19,6 +19,8 @@ extends CharacterBody3D
 @export_group("Speeds")
 ## Look around rotation speed.
 @export var look_speed : float = 0.002
+## Invert vertical look (set from settings).
+@export var invert_y : bool = false
 ## Normal speed.
 @export var base_speed : float = 7.0
 ## Speed of jump.
@@ -63,11 +65,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if get_tree().paused:
 		return
 
-	# Mouse capturing
+	# Mouse capturing (Esc is handled by the in-raid pause menu).
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		capture_mouse()
-	if Input.is_key_pressed(KEY_ESCAPE):
-		release_mouse()
 	
 	# Look around
 	if mouse_captured and event is InputEventMouseMotion:
@@ -127,7 +127,8 @@ func _physics_process(delta: float) -> void:
 ## Base of controller rotates around y (left/right). Head rotates around x (up/down).
 ## Modifies look_rotation based on rot_input, then resets basis and rotates by look_rotation.
 func rotate_look(rot_input : Vector2):
-	look_rotation.x -= rot_input.y * look_speed
+	var pitch_sign := -1.0 if invert_y else 1.0
+	look_rotation.x -= rot_input.y * look_speed * pitch_sign
 	look_rotation.x = clamp(look_rotation.x, deg_to_rad(-85), deg_to_rad(85))
 	look_rotation.y -= rot_input.x * look_speed
 	transform.basis = Basis()

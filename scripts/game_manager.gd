@@ -13,11 +13,13 @@ const ExtractionZoneScript := preload("res://scripts/extraction_zone.gd")
 const HUDScript := preload("res://scripts/hud.gd")
 const LootContainerScript := preload("res://scripts/loot_container.gd")
 const CoopNetScript := preload("res://scripts/coop_net.gd")
+const PauseMenuScript := preload("res://scripts/pause_menu.gd")
 
 var _player: Node3D
 var _is_net: bool = false
 var _is_host: bool = true
 var _coop: CoopNet
+var _pause_menu: PauseMenu
 var _loot_by_index: Dictionary = {}
 var _weapon: WeaponManager
 var _player_health: Health
@@ -61,6 +63,14 @@ func _ready() -> void:
 		_coop.name = "CoopNet"
 		add_child(_coop)
 		_coop.setup(self)
+		if not _is_host:
+			multiplayer.server_disconnected.connect(_on_host_lost)
+
+	_pause_menu = PauseMenuScript.new() as PauseMenu
+	add_child(_pause_menu)
+	_pause_menu.setup(_player)
+	_pause_menu.quit_to_menu.connect(_return_to_menu)
+
 	_capture_mouse()
 
 	if _player_health != null:
@@ -227,6 +237,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	if event is InputEventKey and event.pressed and not event.echo:
 		var code := (event as InputEventKey).physical_keycode
+		if code == KEY_ESCAPE:
+			_toggle_pause()
+			return
 		if code == KEY_M:
 			switch_map()
 			return
@@ -449,7 +462,34 @@ func _win() -> void:
 
 func _return_to_menu() -> void:
 	get_tree().paused = false
+	if _is_net:
+		Net.leave()
 	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+
+func _toggle_pause() -> void:
+	if _pause_menu == null or _game_over:
+		return
+	if _pause_menu.is_open():
+		_pause_menu.close()
+	else:
+		_pause_menu.open()
+
+func _on_host_lost() -> void:
+	if _game_over:
+		return
+	_game_over = true
+	Sfx.stop_loop()
+	_hud.show_results(
+		"HOST DISCONNECTED",
+		Color(1.0, 0.6, 0.3),
+		PackedStringArray([
+			"The host left the raid.",
+			"",
+			"Press Enter to return to base",
+		])
+	)
+	_release_mouse()
+	get_tree().paused = true
 
 # --- Co-op hooks -------------------------------------------------------------
 

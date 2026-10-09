@@ -324,6 +324,20 @@ func _acquire_target() -> void:
 			best = node
 	_player = best
 
+## Push apart from nearby enemies so they don't stack into one blob.
+func _separation() -> Vector3:
+	var push := Vector3.ZERO
+	for other in get_tree().get_nodes_in_group("enemies"):
+		var other_node := other as Node3D
+		if other_node == null or other_node == self:
+			continue
+		var to: Vector3 = global_position - other_node.global_position
+		to.y = 0.0
+		var d: float = to.length()
+		if d > 0.001 and d < 1.6:
+			push += (to / d) * (1.6 - d)
+	return push
+
 func _physics_process(delta: float) -> void:
 	if puppet or state == State.DEAD:
 		return
@@ -365,6 +379,9 @@ func _physics_process(delta: float) -> void:
 		State.ATTACK:
 			_attack(delta, sees_player)
 
+	var sep := _separation()
+	velocity.x += sep.x * 2.0
+	velocity.z += sep.z * 2.0
 	_update_animation(delta)
 	move_and_slide()
 

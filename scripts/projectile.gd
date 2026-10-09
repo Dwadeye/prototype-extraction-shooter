@@ -65,6 +65,7 @@ func _physics_process(delta: float) -> void:
 	if ignore_rid.is_valid():
 		query.exclude = [ignore_rid]
 	query.collide_with_areas = false
+	query.hit_from_inside = true
 
 	var result := space.intersect_ray(query)
 	if not result.is_empty():

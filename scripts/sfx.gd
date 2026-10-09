@@ -16,6 +16,7 @@ const NAMES: Array[String] = [
 var _streams: Dictionary = {}
 var _players: Array[AudioStreamPlayer] = []
 var _loop_player: AudioStreamPlayer
+var volume_scale: float = 1.0
 
 func _ready() -> void:
 	for name in NAMES:
@@ -37,7 +38,7 @@ func play(stream_name: String, volume_db: float = 0.0, pitch: float = 1.0) -> vo
 			player = candidate
 			break
 	player.stream = stream
-	player.volume_db = volume_db
+	player.volume_db = volume_db + linear_to_db(clampf(volume_scale, 0.0001, 1.0))
 	player.pitch_scale = pitch
 	player.play()
 
@@ -48,7 +49,7 @@ func start_loop(stream_name: String, volume_db: float = 0.0) -> void:
 	if _loop_player.stream == stream and _loop_player.playing:
 		return
 	_loop_player.stream = stream
-	_loop_player.volume_db = volume_db
+	_loop_player.volume_db = volume_db + linear_to_db(clampf(volume_scale, 0.0001, 1.0))
 	_loop_player.play()
 
 func stop_loop() -> void:

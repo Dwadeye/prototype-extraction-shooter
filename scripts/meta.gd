@@ -11,8 +11,22 @@ var deaths: int = 0
 var best_extract: int = 0
 var stash: Array = []
 
+var settings: Dictionary = {}
+const DEFAULT_SETTINGS := {
+	"master_volume": 0.9,
+	"sfx_volume": 0.9,
+	"sensitivity": 0.002,
+	"fov": 75.0,
+	"invert_y": false,
+}
+const SAVE_VERSION := 2
+
 func _ready() -> void:
+	settings = DEFAULT_SETTINGS.duplicate(true)
 	load_game()
+
+func get_setting(key: String) -> Variant:
+	return settings.get(key, DEFAULT_SETTINGS.get(key))
 
 func load_game() -> void:
 	if not FileAccess.file_exists(SAVE_PATH):
@@ -27,17 +41,21 @@ func load_game() -> void:
 		deaths = int(data.get("deaths", 0))
 		best_extract = int(data.get("best_extract", 0))
 		stash = data.get("stash", [])
+		if data.get("settings") is Dictionary:
+			settings.merge(data["settings"], true)
 
 func save_game() -> void:
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file == null:
 		return
 	file.store_string(JSON.stringify({
+		"save_version": SAVE_VERSION,
 		"currency": currency,
 		"extractions": extractions,
 		"deaths": deaths,
 		"best_extract": best_extract,
 		"stash": stash,
+		"settings": settings,
 	}))
 
 func deposit(items: Array) -> int:
