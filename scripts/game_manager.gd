@@ -163,21 +163,35 @@ func _cancel_extractions() -> bool:
 	return any
 
 func _spawn_loot() -> void:
-	var index := 0
 	var spawn: Vector3 = _map_data.get("player_spawn", Vector3.ZERO)
-	for position in _map_data.get("loot", []):
-		var loot := LootScript.new() as Loot
-		loot.net_id = index
-		loot.is_intel = index < INTEL_TARGET
-		var loot_pos: Vector3 = position
-		var dist: float = loot_pos.distance_to(spawn)
-		loot.tier = 0 if dist < 55.0 else (1 if dist < 100.0 else 2)
-		loot.position = loot_pos
-		add_child(loot)
-		loot.collected.connect(_on_loot_collected.bind(index, loot.is_intel, loot.tier))
-		_loot_by_index[index] = loot
+	var all_loot: Array = _map_data.get("loot", [])
+	var intel_positions: Array = _map_data.get("intel", [])
+	var loot_positions: Array = all_loot
+	if intel_positions.is_empty():
+		# Fallback: the first INTEL_TARGET loot spawns are the intel.
+		intel_positions = all_loot.slice(0, INTEL_TARGET)
+		loot_positions = all_loot.slice(INTEL_TARGET)
+	var index := 0
+	for position in intel_positions:
+		_spawn_loot_item(index, position, true, 1)
 		index += 1
-	_loot_total = mini(INTEL_TARGET, index)
+	for position in loot_positions:
+		var p: Vector3 = position
+		var dist: float = p.distance_to(spawn)
+		var tier := 0 if dist < 55.0 else (1 if dist < 100.0 else 2)
+		_spawn_loot_item(index, position, false, tier)
+		index += 1
+	_loot_total = intel_positions.size()
+
+func _spawn_loot_item(index: int, position: Vector3, is_intel: bool, tier: int) -> void:
+	var loot := LootScript.new() as Loot
+	loot.net_id = index
+	loot.is_intel = is_intel
+	loot.tier = tier
+	loot.position = position
+	add_child(loot)
+	loot.collected.connect(_on_loot_collected.bind(index, is_intel, tier))
+	_loot_by_index[index] = loot
 
 func _spawn_containers() -> void:
 	for position in _map_data.get("containers", []):
@@ -468,6 +482,8 @@ func _on_loot_collected(index: int, is_intel: bool, tier: int) -> void:
 		if _loot_collected >= _loot_total:
 			_set_extractions_ready(true)
 			_hud.set_hint("Intel secured. Reach the extraction marker!")
+		else:
+			_hud.set_hint("INTEL %d / %d secured" % [_loot_collected, _loot_total])
 	else:
 		_add_item(ItemDefs.random_item(tier))
 	if _coop != null:

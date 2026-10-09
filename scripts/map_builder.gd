@@ -305,6 +305,7 @@ static func _town_placements() -> Dictionary:
 		"title": "Town",
 		"player_spawn": Vector3(0, 0.2, 104),
 		"extractions": [Vector3(0, 0, -112), Vector3(0, 0, 112)],
+		"intel": [Vector3(64, 0, 64), Vector3(-64, 0, -64), Vector3(64, 0, -64)],
 		"loot": loot,
 		"containers": containers,
 		"enemies": enemies,

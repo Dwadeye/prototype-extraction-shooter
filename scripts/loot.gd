@@ -6,6 +6,7 @@ class_name Loot
 signal collected
 
 const LOOT_MODEL := preload("res://assets/kenney/blaster-kit/crate-small.glb")
+const INTEL_MODEL := preload("res://assets/placeholder/loot/Crystal1.glb")
 
 @export var spin_speed: float = 1.6
 @export var model_size: float = 0.6
@@ -33,10 +34,10 @@ func _ready() -> void:
 	shape.position = Vector3(0.0, hover_height, 0.0)
 	add_child(shape)
 
-	_model = LOOT_MODEL.instantiate()
+	_model = (INTEL_MODEL if is_intel else LOOT_MODEL).instantiate()
 	add_child(_model)
-	_fit_model(_model, model_size)
-	_model.position.y += hover_height
+	_fit_model(_model, 0.9 if is_intel else model_size)
+	_model.position.y += hover_height + (0.25 if is_intel else 0.0)
 
 	var light := OmniLight3D.new()
 	light.light_color = Color(0.4, 0.9, 1.0) if is_intel else Color(1.0, 0.8, 0.3)
