@@ -19,6 +19,36 @@ var hits_enemies: bool = true
 var hits_player: bool = false
 var _age: float = 0.0
 
+# --- Pooling: reuse projectiles instead of allocating per shot. --------------
+static var _pool: Array = []
+
+static func acquire(parent: Node) -> Projectile:
+	while not _pool.is_empty():
+		var pooled = _pool.pop_back()
+		if is_instance_valid(pooled):
+			var old_parent = pooled.get_parent()
+			if old_parent != null and old_parent != parent:
+				old_parent.remove_child(pooled)
+			if pooled.get_parent() == null:
+				parent.add_child(pooled)
+			pooled._reset()
+			return pooled
+	var fresh := Projectile.new()
+	parent.add_child(fresh)
+	return fresh
+
+func _reset() -> void:
+	_age = 0.0
+	visible = true
+	set_physics_process(true)
+	for connection in hit_confirmed.get_connections():
+		hit_confirmed.disconnect(connection["callable"])
+
+func _release() -> void:
+	visible = false
+	set_physics_process(false)
+	_pool.append(self)
+
 func _ready() -> void:
 	var mesh_instance := MeshInstance3D.new()
 	var capsule := CapsuleMesh.new()
@@ -78,7 +108,7 @@ func _physics_process(delta: float) -> void:
 
 	_age += delta
 	if _age >= lifetime:
-		queue_free()
+		_release()
 
 func _impact(result: Dictionary) -> void:
 	var collider = result.collider
@@ -93,7 +123,7 @@ func _impact(result: Dictionary) -> void:
 				collider.take_damage(damage)
 				hit_confirmed.emit()
 	_spawn_impact(result.position, result.normal)
-	queue_free()
+	_release()
 
 func _spawn_impact(at: Vector3, normal: Vector3) -> void:
 	var impact := MeshInstance3D.new()

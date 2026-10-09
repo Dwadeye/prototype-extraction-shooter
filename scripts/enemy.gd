@@ -111,6 +111,9 @@ var _action_lock: float = 0.0
 var _puppet_dead: bool = false
 var _sees_player: bool = false
 var _sense_timer: float = 0.0
+var _net_pos: Vector3 = Vector3.ZERO
+var _net_yaw: float = 0.0
+var _has_net_target: bool = false
 
 func _ready() -> void:
 	add_to_group("enemies")
@@ -295,11 +298,14 @@ func is_dead() -> bool:
 
 ## Client-side mirror: apply a host snapshot.
 func apply_net(pos: Vector3, yaw: float, action: String, dead: bool) -> void:
-	global_position = pos
-	rotation.y = yaw
+	_net_pos = pos
+	_net_yaw = yaw
+	_has_net_target = true
 	if dead:
 		if not _puppet_dead:
 			_puppet_dead = true
+			global_position = pos
+			rotation.y = yaw
 			var clip := _clip_for("death")
 			if _anim != null and clip != "":
 				_anim.stop()
@@ -309,6 +315,13 @@ func apply_net(pos: Vector3, yaw: float, action: String, dead: bool) -> void:
 		return
 	_current_action = action
 	_play_clip(_clip_for(action))
+
+func _process(delta: float) -> void:
+	if not puppet or not _has_net_target or _puppet_dead:
+		return
+	var t := clampf(delta * 12.0, 0.0, 1.0)
+	global_position = global_position.lerp(_net_pos, t)
+	rotation.y = lerp_angle(rotation.y, _net_yaw, t)
 
 func take_damage(amount: float) -> void:
 	if health != null:
@@ -513,7 +526,10 @@ func _shoot() -> void:
 	direction = direction.rotated(Vector3.UP, deg_to_rad(randf_range(-spread_degrees, spread_degrees)))
 	direction = direction.rotated(Vector3.RIGHT, deg_to_rad(randf_range(-spread_degrees, spread_degrees)))
 
-	var projectile: Projectile = ProjectileScript.new()
+	var scene := get_tree().current_scene
+	if scene == null:
+		scene = get_tree().root
+	var projectile: Projectile = ProjectileScript.acquire(scene)
 	projectile.velocity = direction * bullet_speed
 	projectile.gravity = 3.0
 	projectile.damage = ranged_damage
@@ -521,11 +537,6 @@ func _shoot() -> void:
 	projectile.hits_player = true
 	projectile.ignore_rid = get_rid()
 	projectile.position = from
-
-	var scene := get_tree().current_scene
-	if scene == null:
-		scene = get_tree().root
-	scene.add_child(projectile)
 	_spawn_muzzle_flash(from)
 	Sfx.play("shot_ar", -10.0, 0.8)
 

@@ -12,6 +12,9 @@ signal net_damaged(peer_id: int, amount: float)
 var health: Health
 var _model: Node3D
 var _flash: StandardMaterial3D
+var _target_pos: Vector3 = Vector3.ZERO
+var _target_yaw: float = 0.0
+var _has_target: bool = false
 
 func _ready() -> void:
 	add_to_group("player")
@@ -63,9 +66,19 @@ func _aabb() -> AABB:
 	return result
 
 ## Called from the network layer with the owner's authoritative transform.
+## Stored as a target and interpolated in _process so remote players move
+## smoothly instead of snapping at the 20 Hz update rate.
 func apply_state(pos: Vector3, yaw: float) -> void:
-	global_position = pos
-	rotation.y = yaw
+	_target_pos = pos
+	_target_yaw = yaw
+	_has_target = true
+
+func _process(delta: float) -> void:
+	if not _has_target:
+		return
+	var t := clampf(delta * 12.0, 0.0, 1.0)
+	global_position = global_position.lerp(_target_pos, t)
+	rotation.y = lerp_angle(rotation.y, _target_yaw, t)
 
 func _on_damaged(amount: float, _current: float, _maximum: float) -> void:
 	net_damaged.emit(peer_id, amount)

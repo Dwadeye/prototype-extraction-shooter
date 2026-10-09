@@ -229,7 +229,10 @@ func _spawn_bullet(def: Dictionary, visual_only: bool = false) -> void:
 	if travel.length_squared() < 0.0001:
 		travel = direction
 
-	var projectile: Projectile = ProjectileScript.new()
+	var scene := get_tree().current_scene
+	if scene == null:
+		scene = get_tree().root
+	var projectile: Projectile = ProjectileScript.acquire(scene)
 	projectile.velocity = travel.normalized() * float(def.get("bullet_speed", 80.0))
 	projectile.gravity = float(def.get("gravity", 0.0))
 	projectile.damage = 0.0 if visual_only else float(def.get("damage", 25.0))
@@ -239,11 +242,6 @@ func _spawn_bullet(def: Dictionary, visual_only: bool = false) -> void:
 		projectile.ignore_rid = _player.get_rid()
 	projectile.position = start
 	projectile.hit_confirmed.connect(_on_projectile_hit)
-
-	var scene := get_tree().current_scene
-	if scene == null:
-		scene = get_tree().root
-	scene.add_child(projectile)
 
 func _swing(def: Dictionary) -> void:
 	_cooldown = float(def.get("fire_interval", 0.4))
