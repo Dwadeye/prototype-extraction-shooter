@@ -45,9 +45,9 @@ static func variant_profile(v: String) -> Dictionary:
 		"boar":
 			return {
 				"model": MODELS["boar"], "beast": true,
-				"height": 1.00, "capsule_height": 0.95, "capsule_radius": 0.42, "capsule_y": 0.48,
+				"height": 1.8, "capsule_height": 1.6, "capsule_radius": 0.6, "capsule_y": 0.8,
 				"speed": 4.6, "health": 85.0, "sight": 26.0,
-				"melee_range": 2.2, "melee_damage": 20.0, "melee_interval": 1.2,
+				"melee_range": 2.4, "melee_damage": 20.0, "melee_interval": 1.2,
 			}
 		"hunter":
 			return {
@@ -59,9 +59,9 @@ static func variant_profile(v: String) -> Dictionary:
 		"brute":
 			return {
 				"model": MODELS["brute"], "beast": true,
-				"height": 2.2, "capsule_height": 2.3, "capsule_radius": 0.6, "capsule_y": 1.15,
+				"height": 3.2, "capsule_height": 3.3, "capsule_radius": 0.9, "capsule_y": 1.65,
 				"speed": 3.0, "health": 170.0, "sight": 30.0,
-				"melee_range": 2.7, "melee_damage": 28.0, "melee_interval": 1.3,
+				"melee_range": 3.2, "melee_damage": 28.0, "melee_interval": 1.3,
 			}
 		_:
 			return {
