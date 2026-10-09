@@ -12,7 +12,7 @@ Temporary CC0 models (Quaternius) mapped to the features in
 | `props/` | Tent, Bonfire_Fire, WoodLog, BearTrap_Open, PropaneTank, Radio, MarketStand_1, Cart, Barrel, Crate, Well, Bell_Tower, Gazebo, Hay, Smoke, Shelf_Large, Kitchen_Fridge | **4.1** POIs (camp, market, church, gas station, loading yard, server room), **4.4** airdrop smoke |
 | `buildings/` | House_1/2, Inn, Blacksmith, Mill, Building1_Large, House1 | **4.1** map expansion / POIs |
 | `animals/` | Wolf, Fox, Deer, Stag, Bull, Rat, Spider | **4.3** Alpha Wolf (scale `Wolf`), wildlife, critters |
-| `characters/` | Suit_Man, Worker_Man, Suit_Woman, **Humanoid_Unarmed, Humanoid_Gun** (fully rigged + 18 clips: Walk/Run/Idle_Shoot/Run_Shoot/Death/HitReact/Punch) | **3.2** trader NPCs; **animated enemies** |
+| `characters/` | Suit_Man, Worker_Man, Suit_Woman, Humanoid_Unarmed, Humanoid_Gun, **Cyber_Character (22 clips), Cyber_Bot (7 clips)** — all rigged + animated | **3.2** trader NPCs; **animated enemies** |
 
 ## Notes
 - GLB with embedded materials; Godot imports on project open (`--import`).

@@ -83,6 +83,8 @@ characters|modular_men|Worker.glb|Worker_Man.glb
 characters|modular_women|Suit.glb|Suit_Woman.glb
 characters|platformer_game_pack|Character.glb|Humanoid_Unarmed.glb
 characters|platformer_game_pack|Character_Gun.glb|Humanoid_Gun.glb
+characters|cyberpunk_pack|Character.glb|Cyber_Character.glb
+characters|cyberpunk_pack|Enemy_2Legs_Gun.glb|Cyber_Bot.glb
 "@
 
 $ok = 0; $skip = 0; $fail = 0

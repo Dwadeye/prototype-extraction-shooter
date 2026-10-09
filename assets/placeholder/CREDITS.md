@@ -12,7 +12,7 @@ are intended to replace these feature by feature.
 - Packs used: `rpg_items_pack`, `survival_pack`, `modular_sci_fi_guns_pack`,
   `single_knight_pack`, `medieval_village_pack`, `buildings_pack_2`,
   `house_interior_pack`, `animals_pack`, `easy_enemies_pack`, `modular_men`, `modular_women`,
-  `platformer_game_pack`.
+  `platformer_game_pack`, `cyberpunk_pack`.
 
 Fetched with `tools/fetch_placeholders.ps1` (re-runnable; deletes are safe).
 

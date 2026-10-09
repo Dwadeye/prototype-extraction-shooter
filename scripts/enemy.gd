@@ -16,8 +16,8 @@ signal died(enemy: Enemy)
 # Rigged + animated models. Each ships an AnimationPlayer with locomotion,
 # attack, hit-react and death clips (see _setup_animation()).
 const MODELS := {
-	"raider": preload("res://assets/placeholder/characters/Humanoid_Gun.glb"),
-	"hunter": preload("res://assets/placeholder/characters/Humanoid_Gun.glb"),
+	"raider": preload("res://assets/placeholder/characters/Cyber_Character.glb"),
+	"hunter": preload("res://assets/placeholder/characters/Cyber_Bot.glb"),
 	"wolf": preload("res://assets/placeholder/animals/Wolf.glb"),
 	"boar": preload("res://assets/placeholder/animals/Bull.glb"),
 }
@@ -200,7 +200,7 @@ func _setup_animation() -> void:
 		_clips[short_name.to_lower()] = clip
 
 	# Locomotion loops; everything else is a one-shot.
-	for key in ["idle", "idle_gun", "idle_2", "walk", "walk_gun", "run", "run_gun", "gallop", "idle_shoot", "run_shoot"]:
+	for key in ["idle", "idle_gun", "idle_2", "idle_neutral", "idle_gun_pointing", "walk", "walk_gun", "run", "run_gun", "gallop", "idle_shoot", "idle_gun_shoot", "gun_shoot", "shoot", "run_shoot"]:
 		if _clips.has(key):
 			var anim: Animation = _anim.get_animation(_clips[key])
 			if anim != null:
@@ -223,19 +223,19 @@ func _clip_for(action: String) -> String:
 	var human := not _is_beast
 	match action:
 		"idle":
-			return _pick(["idle_gun", "idle", "idle_2"]) if human else _pick(["idle", "idle_2"])
+			return _pick(["idle_gun", "idle_gun_pointing", "idle_neutral", "idle", "idle_2"]) if human else _pick(["idle", "idle_2"])
 		"walk":
 			return _pick(["walk_gun", "walk"])
 		"run":
 			return _pick(["run_gun", "run", "gallop"]) if human else _pick(["gallop", "run"])
 		"shoot":
-			return _pick(["idle_shoot", "run_shoot", "idle_gun", "idle"])
+			return _pick(["idle_shoot", "idle_gun_shoot", "gun_shoot", "shoot", "run_shoot", "idle_gun", "idle_gun_pointing", "idle"])
 		"attack":
 			return _pick(["attack", "attack_headbutt", "attack_kick", "punch"])
 		"death":
 			return _pick(["death"])
 		"hit":
-			return _pick(["hitreact", "hit"])
+			return _pick(["hitreact", "hitrecieve", "hitrecieve_2", "hit"])
 	return ""
 
 func _play_clip(clip: String, speed: float = 1.0, restart: bool = false) -> void:
