@@ -62,6 +62,12 @@ func _ready() -> void:
 	shop.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/shop.tscn"))
 	vbox.add_child(shop)
 
+	var tasks := Button.new()
+	tasks.text = "TASKS"
+	tasks.custom_minimum_size = Vector2(260, 42)
+	tasks.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/tasks.tscn"))
+	vbox.add_child(tasks)
+
 	var join_row := HBoxContainer.new()
 	join_row.add_theme_constant_override("separation", 8)
 	join_row.alignment = BoxContainer.ALIGNMENT_CENTER

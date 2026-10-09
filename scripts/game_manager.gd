@@ -337,6 +337,7 @@ func _add_item(item: Dictionary) -> void:
 		_hud.set_hint("Bag full — extract to bank your loot")
 		return
 	_inventory.add(item)
+	Meta.quest_event("collect", String(item.get("id", "")))
 	_hud.set_carried(_inventory.total_value())
 
 ## Press H: channel a bandage (+30) or medkit (+75), interrupted by damage.
@@ -475,6 +476,9 @@ func _on_loot_collected(index: int, is_intel: bool, tier: int) -> void:
 
 func _on_enemy_died(enemy: Enemy) -> void:
 	_kills += 1
+	Meta.quest_event("kill")
+	if enemy.variant == "wolf":
+		Meta.quest_event("kill_wolf")
 	_drop_from_enemy(enemy)
 
 ## Enemies drop ammo, or sometimes a weapon, where they fell.
@@ -530,6 +534,7 @@ func _win() -> void:
 	var value := _inventory.total_value()
 	if Meta != null:
 		Meta.deposit(_inventory.items)
+		Meta.quest_event("extract")
 		# Weapons found during the raid are kept on a successful extraction.
 		if _weapon != null:
 			for slot in ["primary", "utility", "sniper"]:

@@ -14,6 +14,14 @@ var stash: Array = []
 var owned_weapons: Array = ["secondary", "melee"]
 
 var settings: Dictionary = {}
+## Trader tasks. Each: {id, type, desc, target, progress, done, reward, payload?}
+var quests: Array = []
+const DEFAULT_QUESTS := [
+	{"id": "kill5", "type": "kill", "desc": "Eliminate 5 enemies", "target": 5, "progress": 0, "done": false, "reward": 400},
+	{"id": "wolves", "type": "kill_wolf", "desc": "Kill 3 wolves", "target": 3, "progress": 0, "done": false, "reward": 600},
+	{"id": "extract3", "type": "extract", "desc": "Extract successfully 3 times", "target": 3, "progress": 0, "done": false, "reward": 500},
+	{"id": "watch", "type": "collect", "payload": "watch", "desc": "Find a Luxury Watch", "target": 1, "progress": 0, "done": false, "reward": 800},
+]
 const DEFAULT_SETTINGS := {
 	"master_volume": 0.9,
 	"sfx_volume": 0.9,
@@ -25,6 +33,7 @@ const SAVE_VERSION := 2
 
 func _ready() -> void:
 	settings = DEFAULT_SETTINGS.duplicate(true)
+	quests = DEFAULT_QUESTS.duplicate(true)
 	load_game()
 
 func get_setting(key: String) -> Variant:
@@ -51,6 +60,7 @@ func load_game() -> void:
 	best_extract = int(data.get("best_extract", 0))
 	stash = data.get("stash", [])
 	owned_weapons = data.get("owned_weapons", ["secondary", "melee"])
+	quests = data.get("quests", DEFAULT_QUESTS.duplicate(true))
 	if data.get("settings") is Dictionary:
 		settings.merge(data["settings"], true)
 	_migrate(int(data.get("save_version", 1)))
@@ -72,6 +82,7 @@ func save_game() -> void:
 		"best_extract": best_extract,
 		"stash": stash,
 		"owned_weapons": owned_weapons,
+		"quests": quests,
 		"settings": settings,
 	}))
 
@@ -116,4 +127,22 @@ func reset() -> void:
 	deaths = 0
 	best_extract = 0
 	stash = []
+	owned_weapons = ["secondary", "melee"]
+	quests = DEFAULT_QUESTS.duplicate(true)
 	save_game()
+
+## Advance any quest matching `type` (and optional `payload`); grants rewards.
+func quest_event(type: String, payload: String = "") -> void:
+	var changed := false
+	for quest in quests:
+		if bool(quest.get("done", false)) or String(quest.get("type", "")) != type:
+			continue
+		if quest.has("payload") and String(quest["payload"]) != payload:
+			continue
+		quest["progress"] = int(quest.get("progress", 0)) + 1
+		if int(quest["progress"]) >= int(quest.get("target", 1)):
+			quest["done"] = true
+			currency += int(quest.get("reward", 0))
+		changed = true
+	if changed:
+		save_game()

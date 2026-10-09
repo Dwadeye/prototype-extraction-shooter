@@ -8,8 +8,9 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
-	if "shop" in args:
-		root.add_child(load("res://scenes/shop.tscn").instantiate())
+	if "shop" in args or "tasks" in args:
+		var scene_path := "res://scenes/tasks.tscn" if "tasks" in args else "res://scenes/shop.tscn"
+		root.add_child(load(scene_path).instantiate())
 		for i in 30:
 			await process_frame
 		var img: Image = root.get_texture().get_image()
