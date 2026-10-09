@@ -20,6 +20,8 @@ var net_id: int = 0
 @export var is_intel: bool = false
 ## If set, collecting yields this item instead of a random one (enemy drops).
 var drop_item: Dictionary = {}
+## Loot tier (0 near spawn, up to 2 far) — biases item rarity.
+var tier: int = 0
 
 func _ready() -> void:
 	add_to_group("loot")

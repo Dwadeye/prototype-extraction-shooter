@@ -12,6 +12,7 @@ var _weapon_label: Label
 var _weapon_kind: String = "gun"
 var _objective_label: Label
 var _map_label: Label
+var _timer_label: Label
 var _message_label: Label
 var _hint_label: Label
 var _prompt_label: Label
@@ -68,6 +69,17 @@ func _build() -> void:
 	_map_label.offset_right = 480
 	_map_label.offset_bottom = 50
 	_map_label.add_theme_color_override("font_color", Color(0.8, 0.85, 0.95))
+
+	# Raid timer (top right)
+	_timer_label = _make_label(root, 22)
+	_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_timer_label.anchor_left = 1.0
+	_timer_label.anchor_right = 1.0
+	_timer_label.offset_left = -280
+	_timer_label.offset_right = -24
+	_timer_label.offset_top = 24
+	_timer_label.offset_bottom = 54
+	_timer_label.add_theme_color_override("font_color", Color(0.9, 0.95, 1.0))
 
 	# Carried loot value (under map name)
 	_carried_label = _make_label(root, 18)
@@ -423,6 +435,13 @@ func set_objective(text: String) -> void:
 func set_map_name(name: String) -> void:
 	if _map_label != null:
 		_map_label.text = "MAP: %s    [M] switch" % name
+
+func set_timer(seconds: float) -> void:
+	if _timer_label == null:
+		return
+	var s := maxi(0, int(ceil(seconds)))
+	_timer_label.text = "RAID  %02d:%02d" % [s / 60, s % 60]
+	_timer_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.35) if s <= 60 else Color(0.9, 0.95, 1.0))
 
 func set_carried(value: int) -> void:
 	if _carried_label != null:

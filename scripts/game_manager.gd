@@ -164,13 +164,17 @@ func _cancel_extractions() -> bool:
 
 func _spawn_loot() -> void:
 	var index := 0
+	var spawn: Vector3 = _map_data.get("player_spawn", Vector3.ZERO)
 	for position in _map_data.get("loot", []):
 		var loot := LootScript.new() as Loot
 		loot.net_id = index
 		loot.is_intel = index < INTEL_TARGET
-		loot.position = position
+		var loot_pos: Vector3 = position
+		var dist: float = loot_pos.distance_to(spawn)
+		loot.tier = 0 if dist < 55.0 else (1 if dist < 100.0 else 2)
+		loot.position = loot_pos
 		add_child(loot)
-		loot.collected.connect(_on_loot_collected.bind(index, loot.is_intel))
+		loot.collected.connect(_on_loot_collected.bind(index, loot.is_intel, loot.tier))
 		_loot_by_index[index] = loot
 		index += 1
 	_loot_total = mini(INTEL_TARGET, index)
@@ -187,6 +191,10 @@ const BEAST_VARIANTS: Array[String] = ["wolf", "wolf", "wolf", "boar"]
 
 ## Only this many of the loot spawns are objective intel; the rest are optional loot.
 const INTEL_TARGET := 3
+## Raid time limit (seconds). When it runs out you're MIA and lose the haul.
+const RAID_TIME := 600.0
+
+var _raid_time_left: float = RAID_TIME
 
 func _spawn_enemies() -> void:
 	var net_id := 1
@@ -212,6 +220,12 @@ func _spawn_enemies() -> void:
 func _process(delta: float) -> void:
 	_update_stats()
 	if _game_over:
+		return
+	_raid_time_left -= delta
+	if _hud != null:
+		_hud.set_timer(_raid_time_left)
+	if _raid_time_left <= 0.0:
+		_on_raid_timeout()
 		return
 	if _player_health != null and _hud != null:
 		_hud.set_health(_player_health.current_health, _player_health.max_health)
@@ -445,7 +459,7 @@ func _on_ads_changed(scoped: bool) -> void:
 	if _hud != null:
 		_hud.set_scope_visible(scoped)
 
-func _on_loot_collected(index: int, is_intel: bool) -> void:
+func _on_loot_collected(index: int, is_intel: bool, tier: int) -> void:
 	_loot_by_index.erase(index)
 	if is_intel:
 		_loot_collected += 1
@@ -454,7 +468,7 @@ func _on_loot_collected(index: int, is_intel: bool) -> void:
 			_set_extractions_ready(true)
 			_hud.set_hint("Intel secured. Reach the extraction marker!")
 	else:
-		_add_item(ItemDefs.random_item())
+		_add_item(ItemDefs.random_item(tier))
 	if _coop != null:
 		_coop.broadcast_loot_taken(index)
 		_coop.broadcast_intel(_loot_collected)
@@ -605,6 +619,27 @@ func _update_stats() -> void:
 		int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
 		int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)),
 	]
+
+func _on_raid_timeout() -> void:
+	if _game_over:
+		return
+	_game_over = true
+	Sfx.stop_loop()
+	var lost := _inventory.total_value()
+	if Meta != null:
+		Meta.register_death()
+	_hud.show_results(
+		"MISSING IN ACTION",
+		Color(1.0, 0.5, 0.3),
+		PackedStringArray([
+			"The raid timer ran out.",
+			"Lost loot:  $%d" % lost,
+			"",
+			"Press Enter to return to base",
+		])
+	)
+	_release_mouse()
+	get_tree().paused = true
 
 func _on_host_lost() -> void:
 	if _game_over:
