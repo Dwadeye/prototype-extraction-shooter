@@ -120,7 +120,7 @@ func _refresh_status() -> void:
 
 func _on_deploy() -> void:
 	Net.leave()
-	get_tree().change_scene_to_file("res://scenes/Main.tscn")
+	get_tree().change_scene_to_file("res://scenes/lobby.tscn")
 
 func _on_host() -> void:
 	var err := Net.host()
@@ -128,7 +128,7 @@ func _on_host() -> void:
 		_status.text = err
 		return
 	_status.text = "Hosting on port %d — waiting for players…" % Net.DEFAULT_PORT
-	get_tree().change_scene_to_file("res://scenes/Main.tscn")
+	get_tree().change_scene_to_file("res://scenes/lobby.tscn")
 
 func _on_join() -> void:
 	var ip := _ip_field.text.strip_edges()
@@ -141,7 +141,7 @@ func _on_join() -> void:
 	_status.text = "Connecting to %s…" % ip
 
 func _on_connected() -> void:
-	get_tree().change_scene_to_file("res://scenes/Main.tscn")
+	get_tree().change_scene_to_file("res://scenes/lobby.tscn")
 
 func _on_connect_failed() -> void:
 	_status.text = "Connection failed."
