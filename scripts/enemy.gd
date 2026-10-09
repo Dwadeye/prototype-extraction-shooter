@@ -3,14 +3,20 @@ class_name Enemy
 
 ## Stateful combat enemy: wanders, spots the player (line of sight), chases,
 ## then shoots from range and falls back to melee up close.
+##
+## Enemies use rigged, animated CC0 models (Quaternius). An AnimationPlayer in
+## the model is driven from the AI state machine (idle / walk / run / shoot /
+## attack / hit / death).
 
 signal died(enemy: Enemy)
 
+# Rigged + animated models. Each ships an AnimationPlayer with locomotion,
+# attack, hit-react and death clips (see _setup_animation()).
 const MODELS := {
-	"raider": preload("res://assets/draft_pack/char_raider.glb"),
-	"hunter": preload("res://assets/draft_pack/char_hunter.glb"),
-	"wolf": preload("res://assets/draft_pack/beast_wolf.glb"),
-	"boar": preload("res://assets/draft_pack/beast_boar.glb"),
+	"raider": preload("res://assets/placeholder/characters/Humanoid_Gun.glb"),
+	"hunter": preload("res://assets/placeholder/characters/Humanoid_Gun.glb"),
+	"wolf": preload("res://assets/placeholder/animals/Wolf.glb"),
+	"boar": preload("res://assets/placeholder/animals/Bull.glb"),
 }
 const DEFAULT_VARIANT := "raider"
 
@@ -89,6 +95,10 @@ var _wander_dir: Vector3 = Vector3.ZERO
 var _wander_timer: float = 0.0
 var _repath: float = 0.0
 var _growled: bool = false
+var _anim: AnimationPlayer
+var _clips: Dictionary = {}
+var _current_clip: String = ""
+var _action_lock: float = 0.0
 
 func _ready() -> void:
 	add_to_group("enemies")
@@ -135,6 +145,7 @@ func _build_body() -> void:
 	_model.rotation.y = PI
 	add_child(_model)
 	_fit_model(_model, model_height)
+	_setup_animation()
 
 func _fit_model(root: Node3D, target_height: float) -> void:
 	var box := _aabb_in_self()
@@ -163,6 +174,100 @@ func _aabb_in_self() -> AABB:
 			result = result.merge(box)
 	return result
 
+# --- Animation ---------------------------------------------------------------
+
+func _setup_animation() -> void:
+	for node in _model.find_children("*", "AnimationPlayer", true, false):
+		_anim = node as AnimationPlayer
+		break
+	if _anim == null:
+		return
+	_anim.playback_default_blend_time = 0.15
+
+	# Store clips by their short name (strip the "Armature|" prefix).
+	for clip in _anim.get_animation_list():
+		var short_name: String = clip.get_slice("|", 1) if clip.contains("|") else clip
+		_clips[short_name.to_lower()] = clip
+
+	# Locomotion loops; everything else is a one-shot.
+	for key in ["idle", "idle_gun", "idle_2", "walk", "walk_gun", "run", "run_gun", "gallop", "idle_shoot", "run_shoot"]:
+		if _clips.has(key):
+			var anim: Animation = _anim.get_animation(_clips[key])
+			if anim != null:
+				anim.loop_mode = Animation.LOOP_LINEAR
+	for key in ["attack", "attack_headbutt", "attack_kick", "death", "hitreact", "punch"]:
+		if _clips.has(key):
+			var anim: Animation = _anim.get_animation(_clips[key])
+			if anim != null:
+				anim.loop_mode = Animation.LOOP_NONE
+
+	_update_animation(0.0)
+
+func _pick(keys: Array) -> String:
+	for key in keys:
+		if _clips.has(key):
+			return String(_clips[key])
+	return ""
+
+func _clip_for(action: String) -> String:
+	var human := not _is_beast
+	match action:
+		"idle":
+			return _pick(["idle_gun", "idle", "idle_2"]) if human else _pick(["idle", "idle_2"])
+		"walk":
+			return _pick(["walk_gun", "walk"])
+		"run":
+			return _pick(["run_gun", "run", "gallop"]) if human else _pick(["gallop", "run"])
+		"shoot":
+			return _pick(["idle_shoot", "run_shoot", "idle_gun", "idle"])
+		"attack":
+			return _pick(["attack", "attack_headbutt", "attack_kick", "punch"])
+		"death":
+			return _pick(["death"])
+		"hit":
+			return _pick(["hitreact", "hit"])
+	return ""
+
+func _play_clip(clip: String, speed: float = 1.0, restart: bool = false) -> void:
+	if _anim == null or clip == "":
+		return
+	if not restart and _current_clip == clip and _anim.is_playing():
+		_anim.speed_scale = speed
+		return
+	_current_clip = clip
+	_anim.speed_scale = speed
+	if restart:
+		_anim.stop()
+	_anim.play(clip)
+
+## Plays a one-shot clip and locks locomotion until it finishes.
+func _play_action(action: String) -> void:
+	var clip := _clip_for(action)
+	if clip == "":
+		return
+	_play_clip(clip, 1.0, true)
+	var anim := _anim.get_animation(clip)
+	if anim != null:
+		_action_lock = anim.length
+
+func _update_animation(_delta: float) -> void:
+	if _anim == null or state == State.DEAD or _action_lock > 0.0:
+		return
+	var speed := Vector2(velocity.x, velocity.z).length()
+	var moving := speed > 0.35
+	match state:
+		State.IDLE, State.ALERT:
+			_play_clip(_clip_for("idle"))
+		State.CHASE:
+			if _is_beast:
+				_play_clip(_clip_for("run" if moving else "idle"), clampf(speed / maxf(move_speed, 0.1), 0.7, 1.6))
+			else:
+				_play_clip(_clip_for("walk" if moving else "idle"))
+		State.ATTACK:
+			_play_clip(_clip_for("idle") if _is_beast else _clip_for("shoot"))
+		_:
+			pass
+
 func take_damage(amount: float) -> void:
 	if health != null:
 		health.take_damage(amount)
@@ -178,6 +283,7 @@ func _physics_process(delta: float) -> void:
 	_melee_cd = maxf(0.0, _melee_cd - delta)
 	_wander_timer -= delta
 	_repath -= delta
+	_action_lock = maxf(0.0, _action_lock - delta)
 
 	if _player == null or not is_instance_valid(_player):
 		_player = get_tree().get_first_node_in_group("player")
@@ -208,6 +314,7 @@ func _physics_process(delta: float) -> void:
 		State.ATTACK:
 			_attack(delta, sees_player)
 
+	_update_animation(delta)
 	move_and_slide()
 
 func _wander(delta: float) -> void:
@@ -358,6 +465,8 @@ func _spawn_muzzle_flash(at: Vector3) -> void:
 func _melee() -> void:
 	if _player == null or not is_instance_valid(_player):
 		return
+	if _is_beast:
+		_play_action("attack")
 	var player_health := _player.get_node_or_null("Health")
 	if player_health != null and player_health.has_method("take_damage"):
 		player_health.take_damage(melee_damage)
@@ -368,6 +477,9 @@ func _on_damaged(_amount: float, _current: float, _maximum: float) -> void:
 		_lost_timer = lose_sight_time
 		if state == State.IDLE or state == State.ALERT:
 			state = State.CHASE
+
+	if state != State.DEAD and _anim != null:
+		_play_action("hit")
 
 	if _flash_material == null:
 		return
@@ -391,6 +503,19 @@ func _on_died() -> void:
 	died.emit(self)
 	collision_layer = 0
 	collision_mask = 0
-	var tween := create_tween()
-	tween.tween_property(self, "scale", Vector3(0.01, 0.01, 0.01), 0.25)
-	tween.tween_callback(queue_free)
+
+	var death_clip := _clip_for("death")
+	if _anim != null and death_clip != "":
+		_current_clip = death_clip
+		_anim.stop()
+		_anim.play(death_clip)
+		var length := 0.0
+		var anim := _anim.get_animation(death_clip)
+		if anim != null:
+			length = anim.length
+		# Leave the corpse for a moment, then clean up.
+		get_tree().create_timer(length + 2.5).timeout.connect(queue_free)
+	else:
+		var tween := create_tween()
+		tween.tween_property(self, "scale", Vector3(0.01, 0.01, 0.01), 0.25)
+		tween.tween_callback(queue_free)

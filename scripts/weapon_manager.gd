@@ -4,6 +4,10 @@ class_name WeaponManager
 ## Drives the loadout slots (primary, secondary, melee, utility, sniper).
 ## Handles firing (with bullet drop), aiming down sights / scopes, reloading,
 ## melee swings, and charged grenade throws.
+##
+## The first-person view model is animated procedurally: sway from mouse look,
+## bob while walking, recoil on fire, a swing on melee/throw, a dip on reload,
+## and a raise toward the centre while aiming down sights.
 
 signal weapon_changed(weapon_name: String, kind: String, ammo: int, magazine: int)
 signal ammo_changed(current: int, maximum: int, reserve: int)
@@ -34,6 +38,13 @@ var _look_speed: float = 0.002
 var _player: Node3D
 var _holder: Node3D
 var _base_offsets: Array[Vector3] = []
+var _base_rots: Array[Vector3] = []
+var _last_look: Vector2 = Vector2.ZERO
+var _sway: Vector2 = Vector2.ZERO
+var _bob_time: float = 0.0
+var _recoil: float = 0.0
+var _melee_anim: float = 0.0
+var _ads_blend: float = 0.0
 
 func _ready() -> void:
 	_player = get_tree().get_first_node_in_group("player")
@@ -52,8 +63,12 @@ func _ready() -> void:
 		var viewmodel := _make_viewmodel(def)
 		_viewmodels.append(viewmodel)
 		_base_offsets.append(viewmodel.position)
+		_base_rots.append(viewmodel.rotation_degrees)
 		_ammo.append(int(def.get("magazine", def.get("count", 0))))
 		_reserve.append(int(def.get("reserve", 0)))
+
+	if _player != null and "look_rotation" in _player:
+		_last_look = _player.get("look_rotation")
 
 	_show_slot(0)
 
@@ -84,6 +99,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	_update_ads(delta)
+	_update_viewmodel(delta)
 	_cooldown = maxf(0.0, _cooldown - delta)
 
 	var def: Dictionary = _weapons[_slot]
@@ -140,6 +156,8 @@ func _select(index: int) -> void:
 	_slot = index
 	_reloading = false
 	_charging = false
+	_recoil = 0.0
+	_melee_anim = 0.0
 	charge_changed.emit(0.0)
 	reload_state_changed.emit(false)
 	_show_slot(index)
@@ -150,6 +168,9 @@ func _cycle(direction: int) -> void:
 func _show_slot(index: int) -> void:
 	for i in _viewmodels.size():
 		_viewmodels[i].visible = (i == index)
+		if i == index and i < _base_offsets.size():
+			_viewmodels[i].position = _base_offsets[i]
+			_viewmodels[i].rotation_degrees = _base_rots[i]
 	var summary := current_summary()
 	weapon_changed.emit(String(summary["name"]), String(summary["kind"]), int(summary["ammo"]), int(summary["magazine"]))
 	ammo_changed.emit(_ammo[index], int(_weapons[index].get("magazine", _weapons[index].get("count", 0))), _reserve[index])
@@ -373,23 +394,72 @@ func _aabb_in(root: Node3D) -> AABB:
 			result = result.merge(box)
 	return result
 
-func _kick(def: Dictionary) -> void:
-	if _slot >= _viewmodels.size():
+## Procedural first-person animation: sway, bob, recoil, melee swing, reload dip
+## and ADS raise, all layered onto the slot's base pose.
+func _update_viewmodel(delta: float) -> void:
+	if _slot >= _viewmodels.size() or _slot >= _base_offsets.size():
 		return
-	var viewmodel := _viewmodels[_slot]
-	var base: Vector3 = _base_offsets[_slot]
-	var tween := create_tween()
-	tween.tween_property(viewmodel, "position", base + Vector3(0.0, 0.012, 0.05), 0.04)
-	tween.tween_property(viewmodel, "position", base, 0.09)
+	var vm := _viewmodels[_slot]
+	var def: Dictionary = _weapons[_slot]
+	var base_pos: Vector3 = _base_offsets[_slot]
+	var base_rot: Vector3 = _base_rots[_slot]
+
+	# Sway from mouse look (smoothed).
+	var look := Vector2.ZERO
+	if _player != null and "look_rotation" in _player:
+		var lr: Vector2 = _player.get("look_rotation")
+		look = (lr - _last_look).limit_length(0.06)
+		_last_look = lr
+	_sway = _sway.lerp(look, clampf(delta * 12.0, 0.0, 1.0))
+
+	# Walk bob scaled by horizontal speed.
+	var speed := 0.0
+	if _player != null and "velocity" in _player:
+		var v: Vector3 = _player.get("velocity")
+		speed = Vector2(v.x, v.z).length()
+	_bob_time += delta * (7.0 + speed)
+	var bob_amp := clampf(speed / 7.0, 0.0, 1.0) * 0.014
+	var bob := Vector2(sin(_bob_time) * bob_amp, -absf(sin(_bob_time * 2.0)) * bob_amp)
+
+	# Decay impulses.
+	_recoil = maxf(0.0, _recoil - delta * 6.0)
+	_melee_anim = maxf(0.0, _melee_anim - delta * 5.0)
+	_ads_blend = lerpf(_ads_blend, 1.0 if _ads_active else 0.0, clampf(delta * 12.0, 0.0, 1.0))
+
+	var reload_t := 0.0
+	if _reloading:
+		var total := maxf(0.001, float(def.get("reload", 1.5)))
+		reload_t = sin(clampf(1.0 - _reload_timer / total, 0.0, 1.0) * PI)
+
+	# Compose the offset from the base pose.
+	var target_pos := base_pos
+	var target_rot := base_rot
+	var sway_scale := lerpf(1.0, 0.25, _ads_blend)
+	target_pos += Vector3(-_sway.x, _sway.y, 0.0) * 1.4 * sway_scale
+	target_rot += Vector3(-_sway.y * 55.0, -_sway.x * 55.0, _sway.x * 35.0) * sway_scale
+	target_pos += Vector3(bob.x, bob.y, 0.0) * lerpf(1.0, 0.25, _ads_blend)
+	target_rot += Vector3(bob.y * 260.0, 0.0, bob.x * 160.0)
+	target_pos += Vector3(0.0, _recoil * 0.010, _recoil * 0.045)
+	target_rot += Vector3(-_recoil * 6.0, 0.0, 0.0)
+	target_rot += Vector3(-_melee_anim * 55.0, -_melee_anim * 12.0, 0.0)
+	target_pos += Vector3(0.0, -reload_t * 0.16, reload_t * 0.04)
+	target_rot += Vector3(reload_t * 32.0, reload_t * 18.0, 0.0)
+
+	# Aim down sights: raise toward the centre of the screen.
+	if _ads_blend > 0.0:
+		var ads_pos := Vector3(0.0, -0.30, -0.12)
+		target_pos = target_pos.lerp(ads_pos, _ads_blend * 0.85)
+		target_rot = target_rot.lerp(Vector3.ZERO, _ads_blend * 0.85)
+
+	var blend := clampf(delta * 18.0, 0.0, 1.0)
+	vm.position = vm.position.lerp(target_pos, blend)
+	vm.rotation_degrees = vm.rotation_degrees.lerp(target_rot, blend)
+
+func _kick(_def: Dictionary) -> void:
+	_recoil = minf(1.0, _recoil + 0.8)
 
 func _swing_animation() -> void:
-	if _slot >= _viewmodels.size():
-		return
-	var viewmodel := _viewmodels[_slot]
-	var base_rotation: Vector3 = _weapons[_slot].get("view_rot", Vector3.ZERO)
-	var tween := create_tween()
-	tween.tween_property(viewmodel, "rotation_degrees", base_rotation + Vector3(-55.0, -10.0, 0.0), 0.08)
-	tween.tween_property(viewmodel, "rotation_degrees", base_rotation, 0.16)
+	_melee_anim = 1.0
 
 func _on_projectile_hit() -> void:
 	hit_confirmed.emit()
