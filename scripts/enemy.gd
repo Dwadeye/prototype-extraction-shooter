@@ -20,6 +20,7 @@ const MODELS := {
 	"hunter": preload("res://assets/placeholder/characters/Cyber_Bot.glb"),
 	"wolf": preload("res://assets/placeholder/animals/Wolf.glb"),
 	"boar": preload("res://assets/placeholder/animals/Bull.glb"),
+	"brute": preload("res://assets/placeholder/characters/Cyber_Brute.glb"),
 }
 const DEFAULT_VARIANT := "raider"
 
@@ -54,6 +55,13 @@ static func variant_profile(v: String) -> Dictionary:
 				"height": 1.7, "capsule_height": 1.8, "capsule_radius": 0.4, "capsule_y": 0.9,
 				"speed": 3.3, "health": 50.0, "sight": 52.0,
 				"melee_range": 2.2, "melee_damage": 14.0, "melee_interval": 1.0,
+			}
+		"brute":
+			return {
+				"model": MODELS["brute"], "beast": true,
+				"height": 2.2, "capsule_height": 2.3, "capsule_radius": 0.6, "capsule_y": 1.15,
+				"speed": 3.0, "health": 170.0, "sight": 30.0,
+				"melee_range": 2.7, "melee_damage": 28.0, "melee_interval": 1.3,
 			}
 		_:
 			return {

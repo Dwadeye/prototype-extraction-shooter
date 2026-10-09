@@ -85,6 +85,7 @@ characters|platformer_game_pack|Character.glb|Humanoid_Unarmed.glb
 characters|platformer_game_pack|Character_Gun.glb|Humanoid_Gun.glb
 characters|cyberpunk_pack|Character.glb|Cyber_Character.glb
 characters|cyberpunk_pack|Enemy_2Legs_Gun.glb|Cyber_Bot.glb
+characters|cyberpunk_pack|Enemy_Large.glb|Cyber_Brute.glb
 props|cyberpunk_pack|Turret_Gun.glb|Turret_Gun.glb
 props|cyberpunk_pack|Computer_Large.glb|Computer_Large.glb
 props|cyberpunk_pack|Pipe_1.glb|Pipe_1.glb

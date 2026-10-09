@@ -187,7 +187,7 @@ func _spawn_containers() -> void:
 		container.opened.connect(_on_container_opened)
 
 const HUMAN_VARIANTS: Array[String] = ["raider", "raider", "raider", "hunter"]
-const BEAST_VARIANTS: Array[String] = ["wolf", "wolf", "wolf", "boar"]
+const BEAST_VARIANTS: Array[String] = ["wolf", "wolf", "wolf", "boar", "brute"]
 
 ## Only this many of the loot spawns are objective intel; the rest are optional loot.
 const INTEL_TARGET := 3
