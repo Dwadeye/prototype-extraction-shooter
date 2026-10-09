@@ -81,6 +81,8 @@ animals|easy_enemies_pack|Spider.glb
 characters|modular_men|Suit.glb|Suit_Man.glb
 characters|modular_men|Worker.glb|Worker_Man.glb
 characters|modular_women|Suit.glb|Suit_Woman.glb
+characters|platformer_game_pack|Character.glb|Humanoid_Unarmed.glb
+characters|platformer_game_pack|Character_Gun.glb|Humanoid_Gun.glb
 "@
 
 $ok = 0; $skip = 0; $fail = 0
