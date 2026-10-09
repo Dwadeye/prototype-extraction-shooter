@@ -1,3 +1,6 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# Fetched CC0 PBR textures (unused for now — re-run tools/fetch_textures.ps1)
+/assets/textures/
