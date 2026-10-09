@@ -31,7 +31,8 @@ func setup(inv: Inventory) -> void:
 	visible = false
 
 func _build() -> void:
-	var dim := ColorRect.new()
+	var dim := DropZone.new()
+	dim.panel = self
 	dim.color = Color(0, 0, 0, 0.72)
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(dim)
@@ -128,6 +129,14 @@ func is_open() -> bool:
 
 func _handle_drop(src, dst) -> void:
 	_status.text = ""
+	if dst == null:
+		# Dropped on the background: discard a bag item.
+		if src.kind == "bag":
+			_inv.drop(src.bag_index)
+			_status.text = "Dropped."
+		_rebuild()
+		changed.emit()
+		return
 	if src.kind == "bag" and dst.kind == "bag":
 		_inv.move_item(src.bag_index, dst.bag_index)
 	elif src.kind == "bag" and dst.kind != "bag":
@@ -142,6 +151,15 @@ func _handle_drop(src, dst) -> void:
 	changed.emit()
 
 # --- drag-and-drop slot ------------------------------------------------------
+
+class DropZone extends ColorRect:
+	var panel: InventoryPanel
+
+	func _can_drop_data(_pos: Vector2, data: Variant) -> bool:
+		return typeof(data) == TYPE_DICTIONARY and data.has("source") and data["source"].kind == "bag"
+
+	func _drop_data(_pos: Vector2, data: Variant) -> void:
+		panel._handle_drop(data["source"], null)
 
 class InvSlot extends PanelContainer:
 	var panel: InventoryPanel
